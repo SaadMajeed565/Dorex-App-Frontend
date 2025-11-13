@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dorex App</title>
+    <style>
+      /* Loader full screen */
+      #loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #f0f9ff; /* gray background */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+
+      @keyframes popIn {
+        to { transform: scale(1); }
+      }
+
+      /* Spinner below logo */
+      .spinner {
+        width: 25px;
+        height: 25px;
+        border: 2px solid #ccc;
+        border-top-color: #6D28D9;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-top: 1rem;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Quote text */
+      .loader-quote {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #555;
+        text-align: center;
+        opacity: 0;
+        font-style: italic;
+        transform: translateY(10px);
+        animation: fadeIn 0.6s forwards 0.5s;
+      }
+
+      @keyframes fadeIn {
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loader -->
+    <div id="loader">
+      <img src="./src/assets/loader-logo.png" width="200" style="user-select: none;" draggable="false">
+      <div class="spinner"></div>
+      <div id="loader-quote" class="loader-quote"></div>
+    </div>
+
+    <!-- Vue app -->
+    <div id="app" style="display:none;"></div>
+    <script type="module" src="/src/main.ts"></script>
+
+    <script>
+      const quotes = [
+        // Friendly user-oriented
+        "Preparing your experience...",
+        "Just a moment, almost ready!",
+        "Good things take time, hang tight!",
+        "We’re setting things up for you...",
+        "Almost there, stay tuned!",
+        "Loading awesomeness for you...",
+        "Your journey with Dorex begins soon!",
+        "Hang on, magic is happening...",
+        "Getting things ready, one click away!",
+        "Patience pays off, thank you!",
+        "We appreciate your patience!",
+        "Making things perfect for you...",
+        "Exciting things are coming your way!",
+        "Sit tight, we’re almost done!",
+        "Getting everything ready for you…",
+
+        // Inspirational / motivational
+        "Dream big, start small.",
+        "Every great journey begins with a step.",
+        "Your future is created by what you do today.",
+        "Small progress is still progress.",
+        "Believe in yourself and all that you are.",
+        "Success is a journey, not a destination.",
+        "Great things never come from comfort zones.",
+        "One step at a time, one day at a time.",
+        "Keep going, your effort matters.",
+        "Innovation starts with curiosity.",
+        "Stay positive, work hard, make it happen.",
+        "The best time to start is now.",
+        "Push yourself, because no one else will.",
+        "Challenges are opportunities in disguise.",
+        "Your potential is endless.",
+        "Focus on the good, create the great.",
+        "Consistency is the key to mastery.",
+        "Turn your ideas into reality.",
+        "Growth happens outside your comfort zone.",
+        "Believe, act, achieve."
+      ];
+
+
+      // Show random quote
+      document.getElementById('loader-quote').innerText =
+        quotes[Math.floor(Math.random() * quotes.length)];
+
+      // Hide loader at least 1 second later
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loader = document.getElementById('loader');
+          const app = document.getElementById('app');
+          loader.style.display = 'none';
+          app.style.display = 'block';
+        }, 1000); // 1 second delay
+      });
+    </script>
+  </body>
+</html>
