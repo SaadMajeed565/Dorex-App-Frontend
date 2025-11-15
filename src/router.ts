@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "./stores/authStore";
+import { isCentralDomain, validateTenant } from "./utils/tenantValidation";
 
 const requireAuth = (permissions?: string | string[]) => ({
   requiresAuth: true,
@@ -343,6 +344,12 @@ const routes = [
         component: () => import("./pages/User/Edit.vue"),
         meta: requireAuth("update-user"),
     },
+    // Error pages
+    {
+        name: "Errors.InvalidTenant",
+        path: "/errors/invalid-tenant",
+        component: () => import("./pages/Errors/InvalidTenant.vue"),
+    },
 ];
 
 
@@ -355,6 +362,15 @@ router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore();
     const requiresAuth = Boolean(to.meta?.requiresAuth);
     const permissions = (to.meta?.permissions as string[] | undefined) ?? [];
+
+    // Skip tenant validation for error pages and central domains
+    if (to.name !== "Errors.InvalidTenant" && !isCentralDomain()) {
+        // Validate tenant exists before allowing access
+        const tenantValid = await validateTenant();
+        if (!tenantValid) {
+            return next({ name: "Errors.InvalidTenant" });
+        }
+    }
 
     if (!authStore.token) {
         if (requiresAuth) {

@@ -367,6 +367,73 @@ onMounted(async () => {
         </div>
       </section>
 
+            <!-- Module Stats Grid -->
+            <section class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mb-2">
+            <i class="fa-light fa-users text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Customers</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.customers.total }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-600 mb-2">
+            <i class="fa-light fa-badge-check text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Subscriptions</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.subscriptions.active }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-2">
+            <i class="fa-light fa-credit-card text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Payments</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.payments.total }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 mb-2">
+            <i class="fa-light fa-message-exclamation text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Complaints</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.complaints.total }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600 mb-2">
+            <i class="fa-light fa-map-location-dot text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Areas</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.areas.total }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 mb-2">
+            <i class="fa-light fa-id-badge text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Employees</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.employees.total }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 text-orange-600 mb-2">
+            <i class="fa-light fa-router text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Equipment</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.equipment.total }}</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
+          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 mb-2">
+            <i class="fa-light fa-boxes-stacked text-lg"></i>
+          </div>
+          <p class="text-xs text-gray-500 mb-1">Packages</p>
+          <p class="text-lg font-bold text-gray-900">{{ dashboardData.packages.total }}</p>
+        </div>
+      </section>
+
       <!-- Charts Row 1 -->
       <section class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Payment Trend Chart -->
@@ -548,73 +615,6 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <!-- Module Stats Grid -->
-      <section class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mb-2">
-            <i class="fa-light fa-users text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Customers</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.customers.total }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-600 mb-2">
-            <i class="fa-light fa-badge-check text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Subscriptions</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.subscriptions.active }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-2">
-            <i class="fa-light fa-credit-card text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Payments</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.payments.total }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 mb-2">
-            <i class="fa-light fa-message-exclamation text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Complaints</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.complaints.total }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600 mb-2">
-            <i class="fa-light fa-map-location-dot text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Areas</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.areas.total }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 mb-2">
-            <i class="fa-light fa-id-badge text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Employees</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.employees.total }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 text-orange-600 mb-2">
-            <i class="fa-light fa-router text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Equipment</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.equipment.total }}</p>
-        </div>
-
-        <div class="rounded-lg border border-gray-200 bg-white p-4 text-center shadow-sm">
-          <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 mb-2">
-            <i class="fa-light fa-boxes-stacked text-lg"></i>
-          </div>
-          <p class="text-xs text-gray-500 mb-1">Packages</p>
-          <p class="text-lg font-bold text-gray-900">{{ dashboardData.packages.total }}</p>
         </div>
       </section>
 
