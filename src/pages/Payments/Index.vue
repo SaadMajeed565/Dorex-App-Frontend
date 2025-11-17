@@ -241,14 +241,14 @@ onMounted(fetchPayments);
           <i class="fa-light fa-arrow-rotate-right"></i>
           Refresh
         </button>
-        <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+        <!-- <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
           <i class="fa-light fa-file-import"></i>
           Import
         </button>
         <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
           <i class="fa-light fa-arrow-down-to-line"></i>
           Export
-        </button>
+        </button> -->
       </div>
     </div>
 

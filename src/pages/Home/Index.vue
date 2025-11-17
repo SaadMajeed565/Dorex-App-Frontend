@@ -443,9 +443,9 @@ onMounted(async () => {
               <h3 class="text-sm font-semibold text-gray-700">Payment Revenue Trend</h3>
               <p class="text-xs text-gray-500 mt-0.5">Last 7 days</p>
             </div>
-            <button class="text-xs text-gray-500 hover:text-gray-700">
+            <!-- <button class="text-xs text-gray-500 hover:text-gray-700">
               <i class="fa-light fa-download"></i>
-            </button>
+            </button> -->
           </div>
           <div class="h-64">
             <template v-if="paymentTrendData.length > 0">
@@ -491,9 +491,9 @@ onMounted(async () => {
               <h3 class="text-sm font-semibold text-gray-700">Subscription Growth</h3>
               <p class="text-xs text-gray-500 mt-0.5">Last 6 months</p>
             </div>
-            <button class="text-xs text-gray-500 hover:text-gray-700">
+            <!-- <button class="text-xs text-gray-500 hover:text-gray-700">
               <i class="fa-light fa-download"></i>
-            </button>
+            </button> -->
           </div>
           <div class="h-64">
             <template v-if="subscriptionGrowthData.length > 0">

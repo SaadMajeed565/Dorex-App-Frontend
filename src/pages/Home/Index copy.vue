@@ -105,7 +105,7 @@ onMounted(async () => {
       <div class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-gray-700">Users over time</h3>
-          <button class="text-xs text-gray-500 hover:text-gray-700">Export</button>
+          <!-- <button class="text-xs text-gray-500 hover:text-gray-700">Export</button> -->
         </div>
         <div class="mt-4 h-56 rounded-md bg-[var(--p-content-hover-background)]"></div>
       </div>

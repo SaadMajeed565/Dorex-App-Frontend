@@ -36,10 +36,10 @@ async function exportReport() {
           </select>
           <i class="fa-light fa-calendar absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
         </div>
-        <button @click="exportReport" class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
+        <!-- <button @click="exportReport" class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
           <i class="fa-light fa-file-arrow-down"></i>
           Export
-        </button>
+        </button> -->
       </div>
     </section>
 

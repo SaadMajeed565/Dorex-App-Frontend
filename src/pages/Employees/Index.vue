@@ -186,11 +186,11 @@ const handleEditFromView = (employeeId: number | string) => {
           <i class="fa-light fa-arrow-rotate-right"></i>
           Refresh
         </button>
-        <button
+        <!-- <button
           class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           <i class="fa-light fa-download"></i>
           Export
-        </button>
+        </button> -->
       </div>
     </div>
     <!-- Add Employee Dialog -->

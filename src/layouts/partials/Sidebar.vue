@@ -19,7 +19,7 @@ const sidebarOptions: Record<string, SidebarOption[]> = {
   dashboard: [
     { label: "Dashboard", name: "Home.Index", icon: "fa-regular fa-home", permission: "view-dashboard" },
     // { label: "Stats", name: "Home.Stats", icon: "fa-regular fa-chart-simple", permission: "stats-dashboard" },
-    { label: "Reports", name: "Reports.Index", icon: "fa-regular fa-chart-line", permission: "reports-dashboard" },
+    // { label: "Reports", name: "Reports.Index", icon: "fa-regular fa-chart-line", permission: "reports-dashboard" },
     { label: "Contacts", name: "Contacts.Index", icon: "fa-regular fa-address-book", permission: "view-customer" },
   ],
   customers: [
