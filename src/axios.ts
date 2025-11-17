@@ -11,15 +11,16 @@ import router from "./router";
  * - Result: http://tenant1.localhost:8000/api
  */
 function getApiBaseUrl(): string {
-    const currentHostname = window.location.hostname; // e.g., tenant.dorex.app
-    const appUrl = import.meta.env.VITE_APP_URL;      // e.g., test.dorex.app
+    const currentHostname = window.location.hostname; // e.g., trigonolinks.test.dorex.app
+    const appUrl = import.meta.env.VITE_APP_URL;      // e.g., https://test.dorex.app
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL; // e.g., https://api.dorex.app
 
     if (apiBaseUrl && appUrl) {
         try {
-            const currentSubdomain = currentHostname.replace(`.${appUrl.replace(/^https?:\/\//, '')}`, ''); // "tenant"
-            const envUrl = new URL(apiBaseUrl); // fixed
-            envUrl.hostname = `${currentSubdomain}.${envUrl.hostname}`; // "tenant.api.dorex.app"
+            const cleanAppUrl = appUrl.replace(/^https?:\/\//, ''); // remove protocol
+            const currentSubdomain = currentHostname.replace(`.${cleanAppUrl}`, ''); // "trigonolinks"
+            const envUrl = new URL(apiBaseUrl);
+            envUrl.hostname = `${currentSubdomain}.${envUrl.hostname}`; // "trigonolinks.api.dorex.app"
             return envUrl.toString().replace(/\/$/, ''); // remove trailing slash
         } catch (e) {
             console.error('[API Config] Invalid VITE_API_BASE_URL or VITE_APP_URL', e);
