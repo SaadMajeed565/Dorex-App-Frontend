@@ -8,9 +8,9 @@ const dateRange = ref<string>('Last 28 days');
 const reportType = ref<string>('Network');
 const types = ['Network','Subscribers','Billing','Tickets'];
 
-async function exportReport() {
-  await axiosClient.get('/reports/export');
-}
+// async function exportReport() {
+//   await axiosClient.get('/reports/export');
+// }
 </script>
 
 <template>
