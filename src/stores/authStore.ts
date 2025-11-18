@@ -109,13 +109,19 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (error) {
       const err = error as AxiosError;
       if (axios.isAxiosError(err)) {
-        console.error("fetchCurrentUser failed", {
-          status: err.response?.status,
-          data: err.response?.data,
-        });
+        // If 401 (Unauthorized), the user is not authenticated
+        if (err.response?.status === 401) {
+          console.warn("User authentication failed (401) - logging out");
+        } else {
+          console.error("fetchCurrentUser failed", {
+            status: err.response?.status,
+            data: err.response?.data,
+          });
+        }
       } else {
         console.error("fetchCurrentUser failed", err);
       }
+      // Clear auth data on any error (especially 401)
       clearAuthData();
       return false;
     } finally {

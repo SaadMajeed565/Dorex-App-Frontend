@@ -60,9 +60,19 @@ axiosClient.interceptors.request.use(
 
 axiosClient.interceptors.response.use((response) => {
     return response
-}, error => {
+}, async error => {
     if (error.response && error.response.status === 401) {
-        router.push({ name: "Home.Index" });
+        // Clear auth data using the store to keep state in sync
+        // Use dynamic import to avoid circular dependency
+        const { useAuthStore } = await import("./stores/authStore");
+        const authStore = useAuthStore();
+        authStore.clearAuthData();
+        
+        // Only redirect if not already on login/register page to avoid loops
+        const currentRoute = router.currentRoute.value;
+        if (currentRoute.name !== "Auth.Login" && currentRoute.name !== "Auth.Register") {
+            router.push({ name: "Auth.Login" });
+        }
     }
 
     throw error;
