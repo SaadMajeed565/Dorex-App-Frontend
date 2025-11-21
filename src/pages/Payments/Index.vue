@@ -300,8 +300,8 @@ onMounted(async () => {
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm font-medium text-gray-500">Total Volume</p>
-            <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency.value) }}</p>
-            <p v-if="payments.length > 0 && payments.some(p => p.currency !== (payments[0]?.currency || tenantCurrency.value))" class="text-xs text-gray-400 mt-1">Multiple currencies</p>
+            <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency) }}</p>
+            <p v-if="payments.length > 0 && payments.some(p => p.currency !== (payments[0]?.currency || tenantCurrency))" class="text-xs text-gray-400 mt-1">Multiple currencies</p>
           </div>
           <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
             <i class="fa-light fa-dollar-sign text-lg"></i>

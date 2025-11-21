@@ -78,7 +78,7 @@ const fetchEmployees = async () => {
 };
 
 // Function to search employees for AutoComplete
-const searchEmployees = (event: any) => {
+const searchEmployees = () => {
   // The AutoComplete will automatically filter based on the query
 };
 
