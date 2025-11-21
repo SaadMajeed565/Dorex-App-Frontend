@@ -5,6 +5,10 @@ import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import axiosClient from '../../axios';
 import { useToast } from 'primevue/usetoast';
 import AddInventory from './AddInventory.vue';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+
+const generalSettingsStore = useGeneralSettingsStore();
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
 
 // Toast
 const toast = useToast();
@@ -61,7 +65,10 @@ const fetchInventory = async () => {
   }
 };
 
-onMounted(fetchInventory);
+onMounted(async () => {
+  await generalSettingsStore.fetchSettings();
+  fetchInventory();
+});
 
 // Computed filters
 const filteredInventory = computed(() => {
@@ -123,10 +130,10 @@ const getQuantityColor = (quantity: number, minStock: number) => {
 
 const formatCurrency = (amount: number | string) => {
   const num = typeof amount === 'number' ? amount : parseFloat(amount || '0');
-  if (isNaN(num)) return '$0.00';
+  if (isNaN(num)) return `0.00 ${tenantCurrency.value}`;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: tenantCurrency.value,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(num);

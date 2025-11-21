@@ -4,8 +4,14 @@ import MasterLayout from '../../layouts/MasterLayout.vue';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import axiosClient from '../../axios';
 import AddPayment from './AddPayment.vue';
+import ImportDialog from '../../components/ImportDialog.vue';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+
+const generalSettingsStore = useGeneralSettingsStore();
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
 
 const showAddPayment = ref(false);
+const showImportDialog = ref(false);
 const addPaymentRef = ref();
 
 type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
@@ -136,7 +142,7 @@ const fetchPayments = async () => {
 
     payments.value = (raw as any[]).map((item) => {
       const amount = item?.amount ?? item?.amountCents ?? item?.amount ?? 0;
-      const currency = item?.currency ?? 'USD';
+      const currency = item?.currency ?? tenantCurrency.value;
       const customerName = item?.customer_name ?? item?.customerName ?? item?.customer?.name ?? (typeof item?.customer === 'string' ? item?.customer : '—');
       const created = item?.created_at ?? item?.createdAt ?? item?.date ?? new Date().toISOString();
       const id = String(item?.id ?? item?.payment_id ?? item?.reference ?? Math.random().toString(36).slice(2));
@@ -162,7 +168,7 @@ const handlePaymentCreated = (newPayment: any) => {
   const paymentData = newPayment?.payment ?? newPayment?.data ?? newPayment
   
   const amount = paymentData?.amount ?? paymentData?.amountCents ?? paymentData?.amount ?? 0;
-  const currency = paymentData?.currency ?? newPayment?.currency ?? 'USD';
+  const currency = paymentData?.currency ?? newPayment?.currency ?? tenantCurrency.value;
   const customerName = paymentData?.customer_name ?? paymentData?.customerName ?? paymentData?.customer?.name ?? newPayment?.customer_name ?? newPayment?.customer?.name ?? (typeof paymentData?.customer === 'string' ? paymentData?.customer : (typeof newPayment?.customer === 'string' ? newPayment?.customer : '—'));
   const created = paymentData?.created_at ?? paymentData?.createdAt ?? paymentData?.payment_date ?? newPayment?.created_at ?? new Date().toISOString();
   const id = String(paymentData?.id ?? paymentData?.payment_id ?? newPayment?.id ?? Math.random().toString(36).slice(2));
@@ -198,7 +204,7 @@ const handlePaymentCreated = (newPayment: any) => {
 
       payments.value = (raw as any[]).map((item) => {
         const amount = item?.amount ?? item?.amountCents ?? item?.amount ?? 0;
-        const currency = item?.currency ?? 'USD';
+        const currency = item?.currency ?? tenantCurrency.value;
         const customerName = item?.customer_name ?? item?.customerName ?? item?.customer?.name ?? (typeof item?.customer === 'string' ? item?.customer : '—');
         const created = item?.created_at ?? item?.createdAt ?? item?.date ?? new Date().toISOString();
         const id = String(item?.id ?? item?.payment_id ?? item?.reference ?? Math.random().toString(36).slice(2));
@@ -219,7 +225,10 @@ const handlePaymentCreated = (newPayment: any) => {
   refreshSilently();
 };
 
-onMounted(fetchPayments);
+onMounted(async () => {
+  await generalSettingsStore.fetchSettings();
+  fetchPayments();
+});
 </script>
 
 <template>
@@ -233,43 +242,71 @@ onMounted(fetchPayments);
         <p class="text-sm text-gray-500">Track transactions and statuses</p>
       </div>
       <div class="flex items-center gap-3">
-        <button @click="showAddPayment = true" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700">
+        <button @click="showAddPayment = true" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
           <i class="fa-light fa-plus"></i>
           Add Payment
         </button>
-        <button @click="fetchPayments" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+        <button @click="fetchPayments" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           <i class="fa-light fa-arrow-rotate-right"></i>
           Refresh
         </button>
-        <!-- <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+        <button @click="showImportDialog = true" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           <i class="fa-light fa-file-import"></i>
           Import
         </button>
-        <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+        <!-- <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
           <i class="fa-light fa-arrow-down-to-line"></i>
           Export
         </button> -->
       </div>
     </div>
 
-    <!-- Stats -->
+    <!-- Stats Cards -->
     <div class="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
       <div class="rounded-xl border border-gray-200 bg-white p-6">
-        <p class="text-sm font-medium text-gray-500">Total Payments</p>
-        <p class="text-2xl font-bold text-gray-900">{{ totalPayments }}</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">Total Payments</p>
+            <p class="text-2xl font-bold text-gray-900">{{ totalPayments }}</p>
+          </div>
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <i class="fa-light fa-receipt text-lg"></i>
+          </div>
+        </div>
       </div>
       <div class="rounded-xl border border-gray-200 bg-white p-6">
-        <p class="text-sm font-medium text-gray-500">Paid</p>
-        <p class="text-2xl font-bold text-gray-900">{{ totalPaid }}</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">Paid</p>
+            <p class="text-2xl font-bold text-gray-900">{{ totalPaid }}</p>
+          </div>
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-green-50 text-green-600">
+            <i class="fa-light fa-circle-check text-lg"></i>
+          </div>
+        </div>
       </div>
       <div class="rounded-xl border border-gray-200 bg-white p-6">
-        <p class="text-sm font-medium text-gray-500">Pending</p>
-        <p class="text-2xl font-bold text-gray-900">{{ totalPending }}</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">Pending</p>
+            <p class="text-2xl font-bold text-gray-900">{{ totalPending }}</p>
+          </div>
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-50 text-yellow-600">
+            <i class="fa-light fa-clock text-lg"></i>
+          </div>
+        </div>
       </div>
       <div class="rounded-xl border border-gray-200 bg-white p-6">
-        <p class="text-sm font-medium text-gray-500">Total Volume</p>
-        <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(totalAmountCents, payments.length > 0 ? payments[0].currency : 'USD') }}</p>
-        <p v-if="payments.length > 0 && payments.some(p => p.currency !== (payments[0]?.currency || 'USD'))" class="text-xs text-gray-400 mt-1">Multiple currencies</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">Total Volume</p>
+            <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency.value) }}</p>
+            <p v-if="payments.length > 0 && payments.some(p => p.currency !== (payments[0]?.currency || tenantCurrency.value))" class="text-xs text-gray-400 mt-1">Multiple currencies</p>
+          </div>
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+            <i class="fa-light fa-dollar-sign text-lg"></i>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -379,6 +416,7 @@ onMounted(fetchPayments);
     </div>
     </template>
     <AddPayment ref="addPaymentRef" v-model:visible="showAddPayment" @created="(data: any) => handlePaymentCreated(data)" />
+    <ImportDialog v-model="showImportDialog" module="payments" @imported="fetchPayments" />
   </MasterLayout>
 </template>
 

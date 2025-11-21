@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import axiosClient from '../../axios';
 import Dialog from '../../volt/Dialog.vue';
 import Edit from './Edit.vue';
 import { useToast } from 'primevue/usetoast';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+
+const generalSettingsStore = useGeneralSettingsStore();
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
 
 const props = defineProps<{ 
   visible: boolean;
@@ -54,7 +58,7 @@ function formatCurrency(amount: number | string | null | undefined): string {
   if (!amount || amount === '') return '—';
   const num = Number(amount);
   if (isNaN(num)) return '—';
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(num);
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: tenantCurrency.value, maximumFractionDigits: 2 }).format(num);
 }
 
 // Delete package function

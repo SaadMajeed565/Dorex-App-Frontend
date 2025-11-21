@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import axiosClient from '../../axios'
 import Button from '../../volt/Button.vue'
 import AutoComplete from '../../volt/AutoComplete.vue'
@@ -9,6 +9,7 @@ import InputNumber from '../../volt/InputNumber.vue'
 import InputText from '../../volt/InputText.vue'
 import { useToast } from 'primevue/usetoast'
 import Dialog from '../../volt/Dialog.vue'
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -26,6 +27,8 @@ interface CustomerOption {
 // Toast + state
 const toast = useToast()
 const loading = ref(false)
+const generalSettingsStore = useGeneralSettingsStore()
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit)
 
 // Error validation
 const errors = ref<{
@@ -35,17 +38,19 @@ const errors = ref<{
   payment_date?: string
 }>({})
 
-// Form data
-const initialFormState = {
+// Form data - currency will be set from tenant settings
+const getInitialFormState = () => ({
   customer_id: null as CustomerOption | null,
   amount: null as number | null,
-  currency: 'USD',
+  currency: tenantCurrency.value,
   status: 'pending' as 'paid' | 'pending' | 'failed' | 'refunded',
   payment_date: null as string | null,
   payment_method: '',
   reference: '',
   notes: ''
-}
+})
+
+const initialFormState = getInitialFormState()
 
 const form = ref({ ...initialFormState })
 
@@ -83,6 +88,12 @@ const currencyOptions = [
 
 // Fetch customers from API
 onMounted(async () => {
+  // Load general settings to get currency
+  await generalSettingsStore.fetchSettings()
+  
+  // Update form currency to match tenant settings
+  form.value.currency = tenantCurrency.value
+  
   try {
     const customersRes = await axiosClient.get('/customers')
 
@@ -178,8 +189,8 @@ const submitForm = async () => {
       life: 3000
     })
 
-    // Reset form to initial state
-    form.value = { ...initialFormState }
+    // Reset form to initial state with current tenant currency
+    form.value = { ...getInitialFormState() }
     emit('created', res.data)
     emit('update:visible', false)
   } catch (error: any) {
@@ -215,8 +226,8 @@ watch(
   () => props.visible,
   (visible) => {
     if (visible) {
-      // Reset form when dialog opens
-      form.value = { ...initialFormState }
+      // Reset form when dialog opens with current tenant currency
+      form.value = { ...getInitialFormState() }
       errors.value = {}
       filteredCustomers.value = [...customers.value]
       

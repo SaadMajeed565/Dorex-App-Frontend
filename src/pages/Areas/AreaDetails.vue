@@ -32,12 +32,12 @@ const title = computed(() => props.area?.name ? `Area: ${props.area.name}` : 'Ar
             <div class="flex justify-between"><span class="text-gray-500">Name</span><span class="font-medium text-gray-900">{{ props.area.name }}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Code</span><span class="font-medium text-gray-900">{{ props.area.code ?? '—' }}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Status</span><span class="font-medium text-gray-900">{{ props.area.status ?? '—' }}</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">Customers</span><span class="font-medium text-gray-900">{{ (props.area.customers_count || 0).toLocaleString() }}</span></div>
           </div>
         </div>
         <div class="rounded-xl border border-gray-100 p-4">
           <h3 class="text-sm font-semibold text-gray-800 mb-2">Operations</h3>
           <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-gray-500">Coverage</span><span class="font-medium text-gray-900">{{ props.area.coverage ?? '—' }}<template v-if="props.area.coverage != null">%</template></span></div>
             <div class="flex justify-between"><span class="text-gray-500">Infrastructure</span><span class="font-medium text-gray-900">{{ props.area.infrastructure ?? '—' }}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Manager</span><span class="font-medium text-gray-900">{{ props.area.manager ?? '—' }}</span></div>
           </div>

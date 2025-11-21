@@ -38,18 +38,16 @@ const transformStyle = computed(() => ({
 
 const chartContainer = ref<HTMLElement | null>(null);
 
-// Handle mouse wheel zoom
+// Handle mouse wheel zoom (only when Ctrl / Cmd is pressed, so normal scroll still works)
 const handleWheelZoom = (event: WheelEvent) => {
-  if (event.ctrlKey || event.metaKey) {
-    event.preventDefault();
-    const delta = event.deltaY > 0 ? -step : step;
-    const newScale = Math.max(minScale, Math.min(maxScale, +(scale.value + delta).toFixed(2)));
-    scale.value = newScale;
+  if (!event.ctrlKey && !event.metaKey) {
+    return;
   }
+  event.preventDefault();
+  const delta = event.deltaY > 0 ? -step : step;
+  const newScale = Math.max(minScale, Math.min(maxScale, +(scale.value + delta).toFixed(2)));
+  scale.value = newScale;
 };
-
-// Debug: Log the areas data
-console.log('AreasOrgChart - Received areas:', props.areas);
 
 // Transform areas data into OrgChart format
 const orgChartData = computed(() => {
@@ -72,7 +70,14 @@ const orgChartData = computed(() => {
   const visited = new Set<number>();
   const buildNode = (area: any): any => {
     if (!area) return null;
-    if (visited.has(area.id)) return { key: area.id, label: area.name, children: [] };
+    if (visited.has(area.id)) {
+      return {
+        key: area.id,
+        label: area.name,
+        data: area,
+        children: [],
+      };
+    }
     visited.add(area.id);
     const children = getFullChildren(area)
       .map((c) => buildNode(idToArea.get(c.id) ?? c))
@@ -81,7 +86,8 @@ const orgChartData = computed(() => {
     return {
       key: area.id,
       label: area.name,
-      children
+      data: area,
+      children,
     };
   };
 
@@ -161,15 +167,41 @@ const closeDialog = () => {
       <div 
         v-else 
         ref="chartContainer"
-        class="flex-1 overflow-auto border border-surface-200 dark:border-surface-700 rounded-lg bg-surface-50 dark:bg-surface-900 relative"
-        @wheel.prevent="handleWheelZoom"
+        class="flex-1 overflow-auto border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 relative"
+        @wheel="handleWheelZoom"
       >
         <div class="p-6 flex items-center justify-center min-h-full" :style="transformStyle">
           <OrganizationChart
             :value="orgChartData"
           >
             <template #default="slotProps">
-              <span>{{ slotProps.node.label }}</span>
+              <div class="flex flex-col items-start gap-1 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="fa-light fa-map-location-dot text-indigo-500"></i>
+                  <span class="font-semibold text-sm text-gray-900">
+                    {{ slotProps.node.label }}
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500" v-if="slotProps.node.data?.code">
+                  Code: <span class="font-medium text-gray-700">{{ slotProps.node.data.code }}</span>
+                </div>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[11px] text-gray-500">
+                  <span v-if="slotProps.node.data?.infrastructure">
+                    Infra:
+                    <span class="font-medium text-gray-700">{{ slotProps.node.data.infrastructure }}</span>
+                  </span>
+                  <span v-if="slotProps.node.data?.manager">
+                    Manager:
+                    <span class="font-medium text-gray-700">{{ slotProps.node.data.manager }}</span>
+                  </span>
+                  <span v-if="slotProps.node.data?.customers_count != null">
+                    Customers:
+                    <span class="font-medium text-gray-700">
+                      {{ (slotProps.node.data.customers_count || 0).toLocaleString() }}
+                    </span>
+                  </span>
+                </div>
+              </div>
             </template>
           </OrganizationChart>
         </div>
@@ -180,7 +212,7 @@ const closeDialog = () => {
         <Button
           label="Close"
           size="small"
-          variant="outlined"
+          class="p-outlined"
           @click="closeDialog"
         />
       </div>

@@ -11,6 +11,7 @@ import { useCustomerStore } from '../../stores/customerStore';
 import AddCustomer from './AddCustomer.vue';
 import Edit from './Edit.vue';
 import Show from './Show.vue';
+import ImportDialog from '../../components/ImportDialog.vue';
 
 // Store
 const customerStore = useCustomerStore();
@@ -22,6 +23,7 @@ const confirm = useConfirm();
 const showAddCustomer = ref(false);
 const showViewCustomer = ref(false);
 const showEditCustomer = ref(false);
+const showImportDialog = ref(false);
 const selectedCustomerId = ref<string | number | null>(null);
 
 // Fetch data on mount
@@ -52,6 +54,10 @@ const openEditModal = (customerId: string | number) => {
 };
 
 const handleRefresh = () => {
+  customerStore.fetchCustomers();
+};
+
+const handleImported = () => {
   customerStore.fetchCustomers();
 };
 
@@ -141,16 +147,11 @@ const getStatusColor = (status: string) => {
             <i class="fa-light fa-arrow-rotate-right"></i>
             Refresh
           </button>
-          <!-- <button
+          <button @click="showImportDialog = true"
             class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             <i class="fa-light fa-file-import"></i>
             Import
           </button>
-          <button
-            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            <i class="fa-light fa-download"></i>
-            Export
-          </button> -->
         </div>
       </div>
 
@@ -317,6 +318,11 @@ const getStatusColor = (status: string) => {
       :customerId="selectedCustomerId" 
       @update:visible="showEditCustomer = $event" 
       @updated="handleRefresh" 
+    />
+    <ImportDialog 
+      v-model="showImportDialog" 
+      module="customers"
+      @imported="handleImported"
     />
   </MasterLayout>
 </template>

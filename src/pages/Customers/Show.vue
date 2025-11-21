@@ -2,11 +2,6 @@
 import { ref, watch } from 'vue';
 import axiosClient from '../../axios';
 import Dialog from '../../volt/Dialog.vue';
-import Card from '../../volt/Card.vue';
-import Badge from '../../volt/Badge.vue';
-import Avatar from '../../volt/Avatar.vue';
-import Button from '../../volt/Button.vue';
-import SectionHeader from '../../volt/SectionHeader.vue';
 import { useToast } from 'primevue/usetoast';
 
 // Props & Emits
@@ -23,6 +18,7 @@ const emit = defineEmits<{
 
 // State
 const customer = ref<any>(null);
+const loading = ref(false);
 const toast = useToast();
 
 // Handle edit button click
@@ -35,26 +31,34 @@ const handleEdit = () => {
 // Load customer data
 const loadCustomer = async () => {
   if (!props.customerId) return;
+  loading.value = true;
   try {
     const res = await axiosClient.get(`/customers/${props.customerId}`);
     customer.value = res.data.customer;
   } catch (error: any) {
+    customer.value = null;
     toast.add({
       severity: 'error',
       summary: 'Error',
       detail: error.response?.data?.message || 'Failed to load customer data.',
       life: 4000,
     });
+  } finally {
+    loading.value = false;
   }
 };
 
-// Watch for changes in visibility or customerId
+// Watch for visibility changes and load/reset data
 watch(
-  () => [props.visible, props.customerId],
-  async ([visible, id]) => {
-    if (visible && id) await loadCustomer();
+  () => props.visible,
+  async (visible) => {
+    if (visible && props.customerId) {
+      await loadCustomer();
+    } else if (!visible) {
+      customer.value = null;
+    }
   },
-  { immediate: true }
+  { immediate: false }
 );
 </script>
 
@@ -65,141 +69,88 @@ watch(
     modal
     header="Customer Details"
     :closable="true"
-    :breakpoints="{ '960px': '90vw', '640px': '98vw' }"
-    :style="{ width: '1080px', maxWidth: '98vw' }"
+    :style="{ width: '620px', maxWidth: '97vw' }"
   >
-    <div class="space-y-6">
-      <div v-if="customer">
-        <!-- Customer Header -->
-        <Card>
-          <template #content>
-            <div class="flex items-center space-x-4">
-              <Avatar :label="customer.name.charAt(0).toUpperCase()" size="xlarge" />
-              <div class="flex-1">
-                <h2 class="text-xl font-semibold text-gray-900">{{ customer.name }}</h2>
-                <p class="text-gray-600">{{ customer.email }}</p>
-                <div class="flex items-center space-x-2 mt-2">
-                  <Badge
-                    :value="customer.status"
-                    :severity="customer.status === 'active' ? 'success' : 'danger'"
-                  />
-                  <span class="text-sm text-gray-500 capitalize">{{ customer.current_role }}</span>
-                </div>
-              </div>
-              <Button
-                label="Edit"
-                icon="pi pi-pencil"
-                outlined
-                @click="handleEdit"
-              />
-            </div>
-          </template>
-        </Card>
-
-        <!-- Contact Information -->
-        <Card>
-          <template #title>
-            <SectionHeader title="Contact Information" />
-          </template>
-          <template #content>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Phone</dt>
-                <dd class="text-sm text-gray-900">{{ customer.phone }}</dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Alternative Phone</dt>
-                <dd class="text-sm text-gray-900">{{ customer.alternative_phone || '-' }}</dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Email</dt>
-                <dd class="text-sm text-gray-900">{{ customer.email }}</dd>
-              </div>
-            </dl>
-          </template>
-        </Card>
-
-        <!-- Address Information -->
-        <Card>
-          <template #title>
-            <SectionHeader title="Address Information" />
-          </template>
-          <template #content>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Area</dt>
-                <dd class="text-sm text-gray-900">{{ customer.area }}</dd>
-              </div>
-              <div class="sm:col-span-2">
-                <dt class="text-sm font-medium text-gray-500">Address</dt>
-                <dd class="text-sm text-gray-900">{{ customer.address }}</dd>
-              </div>
-            </dl>
-          </template>
-        </Card>
-
-        <!-- Personal Information -->
-        <Card>
-          <template #title>
-            <SectionHeader title="Personal Information" />
-          </template>
-          <template #content>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm font-medium text-gray-500">NIC</dt>
-                <dd class="text-sm text-gray-900">{{ customer.nic }}</dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Current Role</dt>
-                <dd class="text-sm text-gray-900 capitalize">{{ customer.current_role }}</dd>
-              </div>
-            </dl>
-          </template>
-        </Card>
-
-        <!-- Billing Information -->
-        <Card>
-          <template #title>
-            <SectionHeader title="Billing Information" />
-          </template>
-          <template #content>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Fee Amount</dt>
-                <dd class="text-sm text-gray-900">{{ customer.fee_amount ?? '-' }}</dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Payment Date</dt>
-                <dd class="text-sm text-gray-900">{{ customer.payment_date ?? '-' }}</dd>
-              </div>
-            </dl>
-          </template>
-        </Card>
-
-        <!-- Panel Information -->
-        <Card>
-          <template #title>
-            <SectionHeader title="Panel Information" />
-          </template>
-          <template #content>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Panel ID</dt>
-                <dd class="text-sm text-gray-900">{{ customer.panel_id || '-' }}</dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Panel Password</dt>
-                <dd class="text-sm text-gray-900">{{ customer.panel_password || '-' }}</dd>
-              </div>
-            </dl>
-          </template>
-        </Card>
+    <div v-if="loading" class="py-8 text-center text-gray-500">
+      <i class="fa-light fa-spinner fa-spin text-2xl"></i>
+    </div>
+    <div v-else-if="customer" class="space-y-4 py-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div
+            class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-2xl font-bold text-indigo-600"
+          >
+            <span>{{ customer.name?.charAt(0) || '?' }}</span>
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">
+              {{ customer.name || 'Unknown' }}
+            </h2>
+            <div class="text-xs text-gray-500">Customer ID: #{{ customer.id }}</div>
+          </div>
+        </div>
+        <button
+          class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100"
+          @click="handleEdit"
+        >
+          <i class="fa-light fa-pen-to-square text-sm"></i>
+          Edit
+        </button>
       </div>
 
-      <div v-else class="text-center py-8">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        <p class="text-sm text-gray-500 mt-2">Loading customer details...</p>
-      </div>
+      <dl class="grid grid-cols-1 gap-x-10 gap-y-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-gray-500">Email</dt>
+          <dd class="text-gray-900 break-all">{{ customer.email || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Primary Phone</dt>
+          <dd class="text-gray-900">{{ customer.phone || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Alternative Phone</dt>
+          <dd class="text-gray-900">{{ customer.alternative_phone || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Status</dt>
+          <dd class="text-gray-900 capitalize">{{ customer.status || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Area</dt>
+          <dd class="text-gray-900">{{ customer.area || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Full Address</dt>
+          <dd class="text-gray-900">{{ customer.address || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">NIC</dt>
+          <dd class="text-gray-900">{{ customer.nic || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Current Role</dt>
+          <dd class="text-gray-900 capitalize">{{ customer.current_role || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Fee Amount</dt>
+          <dd class="text-gray-900">{{ customer.customer.fee_amount ?? '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Next Payment Date</dt>
+          <dd class="text-gray-900">{{ customer.customer.payment_date ?? '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Router Panel ID</dt>
+          <dd class="text-gray-900">{{ customer.customer.panel_id || '-' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Router Panel Password</dt>
+          <dd class="text-gray-900">{{ customer.customer.panel_password || '-' }}</dd>
+        </div>
+      </dl>
+    </div>
+    <div v-else class="py-4 text-center text-sm text-gray-500">
+      No customer data found.
     </div>
   </Dialog>
 </template>

@@ -28,13 +28,12 @@ export const useCustomerStore = defineStore("customers", () => {
   const areaFilter = ref("All");
 
   // Status options
-  const statusOptions = [
+  const statusOptions = ref([
     { label: "All", value: "All" },
     { label: "Active", value: "Active" },
     { label: "Suspended", value: "Suspended" },
     { label: "Inactive", value: "Inactive" },
-  ];
-
+  ]);
   // Get unique areas from customers
   const areas = computed(() => {
     const uniqueAreas = new Set(

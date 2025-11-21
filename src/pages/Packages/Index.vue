@@ -5,6 +5,11 @@ import axiosClient from '../../axios';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import AddPackage from './AddPackage.vue';
 import Show from './Show.vue';
+import ImportDialog from '../../components/ImportDialog.vue';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+
+const generalSettingsStore = useGeneralSettingsStore();
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
 
 type PackageStatus = 'Active' | 'Inactive';
 
@@ -24,6 +29,7 @@ interface ServicePackage {
 const packages = ref<ServicePackage[]>([]);
 const loading = ref(true);
 const showAddPackage = ref(false);
+const showImportDialog = ref(false);
 const showPackageDetails = ref(false);
 const selectedPackageId = ref<number | string | null>(null);
 
@@ -82,7 +88,7 @@ const getStatusBadge = (status: PackageStatus) => {
 };
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: tenantCurrency.value, maximumFractionDigits: 0 }).format(amount);
 }
 
 async function sendRequest() {
@@ -119,7 +125,8 @@ async function sendRequest() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await generalSettingsStore.fetchSettings();
   sendRequest();
 });
 </script>
@@ -137,25 +144,21 @@ onMounted(() => {
       <div class="flex items-center gap-3">
         <button
           @click="showAddPackage = true"
-          class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+          class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
         >
           <i class="fa-light fa-plus"></i>
           Add Package
         </button>
         <button
           @click="sendRequest"
-          class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+          class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           <i class="fa-light fa-arrow-rotate-right"></i>
           Refresh
         </button>
-        <!-- <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+        <button @click="showImportDialog = true" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           <i class="fa-light fa-file-import"></i>
           Import
         </button>
-        <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
-          <i class="fa-light fa-arrow-down-to-line"></i>
-          Export
-        </button> -->
       </div>
     </div>
     <!-- Stats Cards -->
@@ -328,6 +331,7 @@ onMounted(() => {
     
     <!-- Add Package Dialog -->
     <AddPackage v-model:visible="showAddPackage" @created="() => sendRequest()" />
+    <ImportDialog v-model="showImportDialog" module="packages" @imported="sendRequest" />
     
     <!-- Package Details Dialog -->
     <Show 

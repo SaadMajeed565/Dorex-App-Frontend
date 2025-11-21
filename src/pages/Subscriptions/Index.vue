@@ -4,8 +4,14 @@ import MasterLayout from '../../layouts/MasterLayout.vue'
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue'
 import axiosClient from '../../axios'
 import AddSubscription from './AddSubscription.vue'
+import ImportDialog from '../../components/ImportDialog.vue'
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore'
+
+const generalSettingsStore = useGeneralSettingsStore()
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit)
 
 const showAddSubscription = ref(false)
+const showImportDialog = ref(false)
 const addSubscriptionRef = ref()
 
 type SubscriptionStatus = 'Active' | 'Paused' | 'Cancelled' | string
@@ -130,13 +136,16 @@ const getStatusBadge = (status?: SubscriptionStatus) => {
 const formatCurrency = (amount?: number) => {
   const value = typeof amount === 'number' ? amount : 0
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: tenantCurrency.value, maximumFractionDigits: 0 }).format(value)
   } catch {
-    return `$${value.toFixed(0)}`
+    return `${value.toFixed(0)} ${tenantCurrency.value}`
   }
 }
 
-onMounted(fetchSubscriptions)
+onMounted(async () => {
+  await generalSettingsStore.fetchSettings()
+  fetchSubscriptions()
+})
 </script>
 
 <template>
@@ -150,13 +159,17 @@ onMounted(fetchSubscriptions)
           <p class="text-sm text-gray-500">Manage customer plans and billing</p>
         </div>
         <div class="flex items-center gap-3">
-          <button @click="showAddSubscription = true" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700">
+          <button @click="showAddSubscription = true" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
             <i class="fa-light fa-plus"></i>
             Add Subscription
           </button>
-          <button @click="fetchSubscriptions" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+          <button @click="fetchSubscriptions" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             <i class="fa-light fa-arrow-rotate-right"></i>
             Refresh
+          </button>
+          <button @click="showImportDialog = true" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <i class="fa-light fa-file-import"></i>
+            Import
           </button>
           <!-- <button class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
             <i class="fa-light fa-file-import"></i>
@@ -169,23 +182,51 @@ onMounted(fetchSubscriptions)
         </div>
       </div>
 
-      <!-- Stats -->
+      <!-- Stats Cards -->
       <div class="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-xl border border-gray-200 bg-white p-6">
-          <p class="text-sm font-medium text-gray-500">Total Subscriptions</p>
-          <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500">Total Subscriptions</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
+            </div>
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <i class="fa-light fa-list-check text-lg"></i>
+            </div>
+          </div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-6">
-          <p class="text-sm font-medium text-gray-500">Active</p>
-          <p class="text-2xl font-bold text-gray-900">{{ stats.active }}</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500">Active</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.active }}</p>
+            </div>
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-green-50 text-green-600">
+              <i class="fa-light fa-badge-check text-lg"></i>
+            </div>
+          </div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-6">
-          <p class="text-sm font-medium text-gray-500">Cancelled</p>
-          <p class="text-2xl font-bold text-gray-900">{{ stats.cancelled }}</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500">Cancelled</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.cancelled }}</p>
+            </div>
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-red-50 text-red-600">
+              <i class="fa-light fa-xmark-circle text-lg"></i>
+            </div>
+          </div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-6">
-          <p class="text-sm font-medium text-gray-500">Avg MRR</p>
-          <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(Number(stats.avgMrr)) }}</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-500">Avg MRR</p>
+              <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(Number(stats.avgMrr)) }}</p>
+            </div>
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+              <i class="fa-light fa-dollar-sign text-lg"></i>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -278,5 +319,6 @@ onMounted(fetchSubscriptions)
       </div>
     </template>
     <AddSubscription ref="addSubscriptionRef" v-model:visible="showAddSubscription" @created="(data: any) => handleSubscriptionCreated(data)" />
+    <ImportDialog v-model="showImportDialog" module="subscriptions" @imported="fetchSubscriptions" />
   </MasterLayout>
 </template>

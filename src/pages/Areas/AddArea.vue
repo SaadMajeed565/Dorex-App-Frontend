@@ -5,6 +5,7 @@ import Dialog from '../../volt/Dialog.vue';
 import AutoComplete from '../../volt/AutoComplete.vue';
 import InputText from '../../volt/InputText.vue';
 import Textarea from '../../volt/Textarea.vue';
+import Select from '../../volt/Select.vue';
 
 const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits<{
@@ -12,13 +13,27 @@ const emit = defineEmits<{
   (e: 'created', data: any): void
 }>();
 
-const form = ref({ name: '', parent_area_id: '', coverage_map: '' });
+const form = ref({ 
+  name: '', 
+  code: '', 
+  parent_area_id: '', 
+  coverage_map: '', 
+  status: 'Active', 
+  infrastructure: '', 
+  manager: '' 
+});
 const loading = ref(false);
 const dialogFormRef = ref<HTMLElement | null>(null);
 const areas = ref<any[]>([]);
 const areasLoading = ref(false);
 const selectedParentArea = ref<any>(null);
 const parentSearchTerm = ref('');
+
+// Employees for manager selection
+const employees = ref<any[]>([]);
+const employeesLoading = ref(false);
+const selectedManager = ref<any>(null);
+const managerSearchTerm = ref('');
 
 // Function to fetch areas for parent selection
 const fetchAreas = async () => {
@@ -36,6 +51,41 @@ const fetchAreas = async () => {
   } finally {
     areasLoading.value = false;
   }
+};
+
+// Function to fetch employees for manager selection
+const fetchEmployees = async () => {
+  employeesLoading.value = true;
+  try {
+    const response = await axiosClient.get('/employees');
+    if (response.data?.status && Array.isArray(response.data?.employees)) {
+      employees.value = response.data.employees.map((emp: any) => ({
+        id: emp.employee?.id || emp.id,
+        name: emp.name || `Employee #${emp.id}`,
+        designation: emp.employee?.designation || emp.designation || '',
+        email: emp.email || ''
+      }));
+    } else {
+      employees.value = [];
+    }
+  } catch (error) {
+    console.error("Error fetching employees:", error);
+    employees.value = [];
+  } finally {
+    employeesLoading.value = false;
+  }
+};
+
+// Function to search employees for AutoComplete
+const searchEmployees = (event: any) => {
+  managerSearchTerm.value = event.query;
+  // The AutoComplete will automatically filter based on the query
+};
+
+// Function to handle manager selection
+const onManagerSelect = (event: any) => {
+  selectedManager.value = event.value;
+  form.value.manager = event.value?.name || '';
 };
 
 // Function to search areas for AutoComplete
@@ -56,6 +106,7 @@ watch(
   (visible) => {
     if (visible) {
       fetchAreas(); // Load areas when dialog opens
+      fetchEmployees(); // Load employees when dialog opens
       nextTick(() => {
         const root = dialogFormRef.value;
         const candidate = root?.querySelector(
@@ -65,9 +116,19 @@ watch(
       });
     } else {
       // Reset form when dialog closes
-      form.value = { name: '', parent_area_id: '', coverage_map: '' };
+      form.value = { 
+        name: '', 
+        code: '', 
+        parent_area_id: '', 
+        coverage_map: '', 
+        status: 'Active', 
+        infrastructure: '', 
+        manager: '' 
+      };
       selectedParentArea.value = null;
       parentSearchTerm.value = '';
+      selectedManager.value = null;
+      managerSearchTerm.value = '';
     }
   },
   { immediate: false }
@@ -80,7 +141,15 @@ async function submit() {
     const res = await axiosClient.post('/areas', form.value);
     emit('created', res.data);
     emit('update:visible', false);
-    form.value = { name: '', parent_area_id: '', coverage_map: '' };
+    form.value = { 
+      name: '', 
+      code: '', 
+      parent_area_id: '', 
+      coverage_map: '', 
+      status: 'Active', 
+      infrastructure: '', 
+      manager: '' 
+    };
   } finally {
     loading.value = false;
   }
@@ -107,6 +176,70 @@ async function submit() {
             size="small"
             fluid
           />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Code</label>
+          <InputText 
+            v-model="form.code" 
+            placeholder="Enter area code"
+            size="small"
+            fluid
+          />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Status</label>
+          <Select
+            v-model="form.status"
+            :options="[
+              { label: 'Active', value: 'Active' },
+              { label: 'Maintenance', value: 'Maintenance' },
+              { label: 'Planned', value: 'Planned' }
+            ]"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select status"
+            size="small"
+            fluid
+          />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Infrastructure</label>
+          <Select
+            v-model="form.infrastructure"
+            :options="[
+              { label: 'Fiber Optic', value: 'Fiber Optic' },
+              { label: 'Wireless', value: 'Wireless' },
+              { label: 'Copper', value: 'Copper' }
+            ]"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select infrastructure"
+            size="small"
+            fluid
+          />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Manager</label>
+          <AutoComplete
+            size="small"
+            fluid
+            v-model="selectedManager"
+            :suggestions="employees"
+            @complete="searchEmployees"
+            @item-select="onManagerSelect"
+            option-label="name"
+            placeholder="Search for manager..."
+            :loading="employeesLoading"
+            class="w-full"
+            dropdown
+          >
+            <template #item="{ option }">
+              <div class="flex flex-col">
+                <div class="font-medium text-gray-900">{{ option.name }}</div>
+                <div v-if="option.designation" class="text-xs text-gray-500">{{ option.designation }}</div>
+              </div>
+            </template>
+          </AutoComplete>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Parent Area</label>

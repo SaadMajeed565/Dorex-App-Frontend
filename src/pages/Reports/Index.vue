@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import MasterLayout from '../../layouts/MasterLayout.vue';
 import axiosClient from '../../axios';
 import { useToast } from 'primevue/usetoast';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+
+const generalSettingsStore = useGeneralSettingsStore();
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
 
 const toast = useToast();
 const loading = ref(true);
@@ -119,12 +123,13 @@ const loadTabData = async (tab: string) => {
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: tenantCurrency.value,
   }).format(amount);
 };
 
 onMounted(async () => {
   loading.value = true;
+  await generalSettingsStore.fetchSettings();
   await Promise.all([
     fetchDashboard(),
     fetchSubscriptions(),

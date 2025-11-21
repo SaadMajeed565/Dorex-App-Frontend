@@ -8,7 +8,6 @@ import Button from '../../volt/Button.vue';
 import InputText from '../../volt/InputText.vue';
 import Password from '../../volt/Password.vue';
 import AutoComplete from '../../volt/AutoComplete.vue';
-import FileUpload from 'primevue/fileupload';
 
 const props = defineProps<{ visible: boolean; employeeId: string | number | null }>();
 const emit = defineEmits<{
@@ -23,6 +22,8 @@ const loading = ref(false);
 const file = ref<File | null>(null);
 const previewUrl = ref<string | null>(null);
 const existingPhotoUrl = ref<string | null>(null);
+const isDragging = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
 
 const areaList = ref<any[]>([]);
 const areaLoading = ref(false);
@@ -142,11 +143,65 @@ const loadEmployee = async () => {
   }
 };
 
-const handleFileUpload = (event: any) => {
-  const selected = event.files?.[0];
-  file.value = selected || null;
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
-  previewUrl.value = selected ? URL.createObjectURL(selected) : null;
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const selected = target.files?.[0];
+  if (selected && selected.type.startsWith('image/')) {
+    file.value = selected;
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = URL.createObjectURL(selected);
+  } else {
+    toast.add({
+      severity: 'warn',
+      summary: 'Invalid File',
+      detail: 'Please select an image file (JPG, PNG, etc.)',
+      life: 3000,
+    });
+  }
+};
+
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  isDragging.value = true;
+};
+
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault();
+  isDragging.value = false;
+};
+
+const handleDrop = (event: DragEvent) => {
+  event.preventDefault();
+  isDragging.value = false;
+  
+  const droppedFile = event.dataTransfer?.files?.[0];
+  if (droppedFile && droppedFile.type.startsWith('image/')) {
+    file.value = droppedFile;
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = URL.createObjectURL(droppedFile);
+  } else {
+    toast.add({
+      severity: 'warn',
+      summary: 'Invalid File',
+      detail: 'Please drop an image file (JPG, PNG, etc.)',
+      life: 3000,
+    });
+  }
+};
+
+const triggerFileInput = () => {
+  fileInput.value?.click();
+};
+
+const clearFile = () => {
+  file.value = null;
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = null;
+  }
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
 };
 
 const submitForm = async () => {
@@ -356,23 +411,67 @@ onBeforeUnmount(() => {
             <label class="block text-sm font-medium text-gray-900">Profile Photo</label>
             <span class="text-[11px] uppercase tracking-wide text-gray-400">Optional</span>
           </div>
-          <p class="text-sm text-gray-500 mt-1">JPG, PNG up to ~2MB.</p>
           <div class="mt-3">
-            <FileUpload mode="basic" chooseLabel="Choose New Image" accept="image/*" @select="handleFileUpload" />
-          </div>
-
-          <div v-if="existingPhotoUrl && !previewUrl" class="mt-4">
-            <div class="aspect-square w-full rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 flex items-center justify-center">
-              <img :src="existingPhotoUrl" alt="Current profile" class="h-full w-full object-cover select-none" />
+            <div
+              @dragover.prevent="handleDragOver"
+              @dragleave.prevent="handleDragLeave"
+              @drop.prevent="handleDrop"
+              @click="triggerFileInput"
+              :class="[
+                'relative flex flex-col items-center justify-center w-full rounded-lg border-2 border-dashed cursor-pointer transition-colors duration-200',
+                isDragging ? 'border-indigo-500 bg-indigo-50' :
+                previewUrl ? 'border-green-400 bg-green-50' :
+                existingPhotoUrl ? 'border-blue-300 bg-blue-50' :
+                'border-gray-300 bg-white hover:border-gray-400'
+              ]"
+              style="min-height: 200px;"
+            >
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/*"
+                @change="handleFileSelect"
+                class="hidden"
+              />
+              <!-- Show existing photo if no new one selected -->
+              <div v-if="existingPhotoUrl && !previewUrl" class="text-center p-4 w-full">
+                <div class="mx-auto w-32 h-32 rounded-lg overflow-hidden ring-2 ring-blue-400 bg-gray-50 mb-3">
+                  <img :src="existingPhotoUrl" alt="Current profile" class="h-full w-full object-cover" />
+                </div>
+                <p class="text-sm font-medium text-gray-900 mb-1">Current Photo</p>
+                <p class="text-xs text-gray-500 mb-3">Click or drag to replace</p>
+                <button
+                  type="button"
+                  @click.stop="triggerFileInput"
+                  class="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Change image
+                </button>
+              </div>
+              <!-- Show upload zone if no existing photo and no preview -->
+              <div v-else-if="!previewUrl" class="text-center p-6">
+                <i class="pi pi-cloud-upload text-4xl text-gray-400 mb-3"></i>
+                <p class="mb-2 text-sm text-gray-600">
+                  <span class="font-semibold text-indigo-600">Click to upload</span> or drag and drop
+                </p>
+                <p class="text-xs text-gray-500">JPG, PNG, GIF (MAX. 5MB)</p>
+              </div>
+              <!-- Show new photo preview -->
+              <div v-else class="text-center p-4 w-full">
+                <div class="mx-auto w-32 h-32 rounded-lg overflow-hidden ring-2 ring-green-400 bg-gray-50 mb-3">
+                  <img :src="previewUrl" alt="New profile" class="h-full w-full object-cover" />
+                </div>
+                <p class="text-sm font-medium text-gray-900 mb-1">{{ file?.name }}</p>
+                <p class="text-xs text-gray-500 mb-3">{{ (file?.size ? (file.size / 1024 / 1024).toFixed(2) : '0') }} MB</p>
+                <button
+                  type="button"
+                  @click.stop="clearFile"
+                  class="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Change image
+                </button>
+              </div>
             </div>
-            <p class="mt-2 text-xs text-gray-500">Current profile photo.</p>
-          </div>
-
-          <div v-if="previewUrl" class="mt-4">
-            <div class="aspect-square w-full rounded-xl overflow-hidden ring-1 ring-gray-200 bg-gray-50 flex items-center justify-center">
-              <img :src="previewUrl" alt="New profile" class="h-full w-full object-cover select-none" />
-            </div>
-            <p class="mt-2 text-xs text-gray-500">Preview of the new image.</p>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, watch, nextTick, onBeforeUnmount, computed, onMounted } from 'vue'
 import axiosClient from '../../axios'
 import Button from '../../volt/Button.vue'
 import Select from '../../volt/Select.vue'
@@ -7,6 +7,10 @@ import InputNumber from '../../volt/InputNumber.vue'
 import InputText from '../../volt/InputText.vue'
 import { useToast } from 'primevue/usetoast'
 import Dialog from '../../volt/Dialog.vue'
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore'
+
+const generalSettingsStore = useGeneralSettingsStore()
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit)
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -167,6 +171,10 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     emit('update:visible', false)
   }
 }
+
+onMounted(async () => {
+  await generalSettingsStore.fetchSettings()
+})
 
 watch(
   () => props.visible,
@@ -367,7 +375,7 @@ watch(
             fluid
             v-model="form.unit_price"
             mode="currency"
-            currency="USD"
+            :currency="tenantCurrency"
             :min="0"
             :minFractionDigits="2"
             :maxFractionDigits="2"
