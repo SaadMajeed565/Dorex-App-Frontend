@@ -264,7 +264,8 @@ onMounted(async () => {
         </div>
       </div>
       <template v-else>
-        <table class="min-w-full divide-y divide-gray-200">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
@@ -303,6 +304,7 @@ onMounted(async () => {
             </tr>
           </tbody>
         </table>
+        </div>
 
         <!-- Pagination -->
         <div class="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3">

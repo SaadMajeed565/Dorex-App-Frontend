@@ -10,6 +10,18 @@ export interface ImportResult {
   };
 }
 
+export interface ValidationResult {
+  status: boolean;
+  data: {
+    valid: boolean;
+    errors: string[];
+    preview: Record<string, any>[];
+    rowErrors: Record<number, string[]>;
+    totalRows: number;
+    headers: string[];
+  };
+}
+
 export class ImportService {
   /**
    * Import data from Excel/CSV file
@@ -30,6 +42,29 @@ export class ImportService {
     } catch (error: any) {
       throw new Error(
         error.response?.data?.message || 'Import failed. Please check your file format.'
+      );
+    }
+  }
+
+  /**
+   * Validate and preview file without importing
+   */
+  static async validate(file: File, module: string): Promise<ValidationResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('module', module);
+
+    try {
+      const response = await axiosClient.post('/import/validate', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Validation failed. Please check your file format.'
       );
     }
   }

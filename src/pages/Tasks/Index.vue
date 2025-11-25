@@ -387,7 +387,8 @@ onMounted(() => {
             <p class="mt-1 text-sm text-gray-500">Get started by creating your first task.</p>
           </div>
         </div>
-        <table v-else class="min-w-full divide-y divide-gray-200">
+        <div v-else class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Task</th>
@@ -480,6 +481,7 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <!-- Modals -->
