@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch, onUnmounted, nextTick } from 'vue';
+import { onMounted, ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosClient from '../../axios';
 import MasterLayout from '../../layouts/MasterLayout.vue';
 import { useAuthStore } from '../../stores/authStore';
 import { storeToRefs } from 'pinia';
 import { useToast } from 'primevue/usetoast';
-import { useConfirm } from 'primevue/useconfirm';
 
 // Profile photo as blob URL
 const profilePhotoBlobUrl = ref<string | null>(null);
@@ -146,7 +145,6 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { userData } = storeToRefs(authStore);
 const toast = useToast();
-const confirm = useConfirm();
 
 // State
 const user = ref<any>(null);

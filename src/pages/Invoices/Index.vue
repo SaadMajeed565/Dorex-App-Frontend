@@ -8,8 +8,6 @@ import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
 import { useToast } from 'primevue/usetoast';
 import AddInvoice from './AddInvoice.vue';
 import ShowInvoice from './Show.vue';
-import Dialog from '../../volt/Dialog.vue';
-import Button from '../../volt/Button.vue';
 import SendInvoiceModal from '../../components/SendInvoiceModal.vue';
 
 const router = useRouter();
