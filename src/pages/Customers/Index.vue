@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
@@ -8,16 +9,37 @@ import MasterLayout from '../../layouts/MasterLayout.vue';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import ConfirmDialog from '../../volt/ConfirmDialog.vue';
 import { useCustomerStore } from '../../stores/customerStore';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
 import AddCustomer from './AddCustomer.vue';
 import Edit from './Edit.vue';
 import Show from './Show.vue';
 import ImportDialog from '../../components/ImportDialog.vue';
 
+const route = useRoute();
+const router = useRouter();
+
 // Store
 const customerStore = useCustomerStore();
+const generalSettingsStore = useGeneralSettingsStore();
 const { loading, stats, filteredCustomers, statusOptions, areas, searchQuery, statusFilter, areaFilter } = storeToRefs(customerStore);
 const toast = useToast();
 const confirm = useConfirm();
+
+// Currency from settings (defaults to PKR)
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit || 'PKR');
+
+// Format currency
+const formatCurrency = (amount: number) => {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: tenantCurrency.value,
+      minimumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${tenantCurrency.value}`;
+  }
+};
 
 // UI State
 const showAddCustomer = ref(false);
@@ -26,9 +48,46 @@ const showEditCustomer = ref(false);
 const showImportDialog = ref(false);
 const selectedCustomerId = ref<string | number | null>(null);
 
+// Modal handlers
+const openShowModal = (customerId: string | number) => {
+  selectedCustomerId.value = customerId;
+  showViewCustomer.value = true;
+};
+
+// Function to handle query parameter
+const handleShowQuery = () => {
+  if (route.query.show) {
+    // Handle both string and array cases
+    const showValue = Array.isArray(route.query.show) ? route.query.show[0] : route.query.show;
+    const id = Number(showValue);
+    if (!isNaN(id) && id > 0) {
+      openShowModal(id);
+      // Clean up query param
+      const newQuery = { ...route.query };
+      delete newQuery.show;
+      router.replace({ query: newQuery });
+    }
+  }
+};
+
+// Watch for query parameters to auto-open modals (when navigating from other pages)
+watch(() => route.query.show, (showValue) => {
+  if (showValue) {
+    handleShowQuery();
+  }
+});
+
 // Fetch data on mount
-onMounted(() => {
+onMounted(async () => {
+  // Fetch general settings (including currency) if not loaded
+  if (!generalSettingsStore.loaded) {
+    await generalSettingsStore.fetchSettings().catch(() => null);
+  }
+  
   customerStore.fetchCustomers();
+  
+  // Check for query parameter on mount (handles initial page load with query param)
+  handleShowQuery();
   
   const handleKeydown = (e: KeyboardEvent) => {
     if (e.altKey && (e.key === 'n' || e.key === 'N')) {
@@ -41,12 +100,6 @@ onMounted(() => {
     window.removeEventListener('keydown', handleKeydown);
   });
 });
-
-// Modal handlers
-const openShowModal = (customerId: string | number) => {
-  selectedCustomerId.value = customerId;
-  showViewCustomer.value = true;
-};
 
 const openEditModal = (customerId: string | number) => {
   selectedCustomerId.value = customerId;
@@ -197,7 +250,7 @@ const getStatusColor = (status: string) => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-500">Outstanding Balance</p>
-              <p class="text-2xl font-bold text-gray-900">${{ stats.totalRevenue.toFixed(2) }}</p>
+              <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(stats.totalRevenue || 0) }}</p>
             </div>
             <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
               <i class="fa-light fa-dollar-sign text-lg"></i>
@@ -284,7 +337,7 @@ const getStatusColor = (status: string) => {
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span :class="`text-sm font-medium ${customerStore.getBalanceColor(customer.balance)}`">
-                      ${{ (customer.balance || 0).toFixed(2) }}
+                      {{ formatCurrency(customer.balance || 0) }}
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">

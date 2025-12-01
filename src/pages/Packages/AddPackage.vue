@@ -17,6 +17,7 @@ const form = ref({ company_name: '', name: '', description: '', speed: '', purch
 const loading = ref(false);
 const dialogFormRef = ref<HTMLElement | null>(null);
 const toast = useToast();
+const errors = ref<Record<string, string[]>>({});
 const companySuggestions = ref<string[]>([]);
 const companiesLoading = ref(false);
 
@@ -82,6 +83,7 @@ watch(
     } else {
       // Reset form when dialog closes
       form.value = { company_name: '', name: '', description: '', speed: '', purchase_price: '', sale_price: '', is_active: true };
+      errors.value = {};
       filteredCompanySuggestions.value = [];
     }
   },
@@ -91,6 +93,7 @@ watch(
 async function submit() {
   if (loading.value) return;
   loading.value = true;
+  errors.value = {};
   try {
     const res = await axiosClient.post('/packages', form.value);
     
@@ -104,7 +107,24 @@ async function submit() {
     emit('created', res.data);
     emit('update:visible', false);
     form.value = { company_name: '', name: '', description: '', speed: '', purchase_price: '', sale_price: '', is_active: true };
+    errors.value = {};
   } catch (error: any) {
+    if (error.response?.data?.errors) {
+      const rawErrors = error.response.data.errors;
+      // Transform error messages: show "This field is required" when field is empty
+      errors.value = Object.keys(rawErrors).reduce((acc, key) => {
+        const fieldValue = form.value[key as keyof typeof form.value];
+        const isEmpty = fieldValue === null || fieldValue === undefined || fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '');
+        acc[key] = rawErrors[key].map((msg: string) => {
+          // If field is empty and error mentions "must be" or "required", show friendly message
+          if (isEmpty && (msg.toLowerCase().includes('must be') || msg.toLowerCase().includes('required'))) {
+            return 'This field is required';
+          }
+          return msg;
+        });
+        return acc;
+      }, {} as Record<string, string[]>);
+    }
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -141,7 +161,9 @@ async function submit() {
             dropdown
             :loading="companiesLoading"
             class="w-full"
+            :class="{ 'border-rose-500': errors.company_name }"
           />
+          <p v-if="errors.company_name" class="mt-1 text-xs text-rose-500">{{ errors.company_name[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Name</label>
@@ -150,7 +172,9 @@ async function submit() {
             placeholder="Enter package name"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.name }"
           />
+          <p v-if="errors.name" class="mt-1 text-xs text-rose-500">{{ errors.name[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Speed (Mbps)</label>
@@ -159,7 +183,9 @@ async function submit() {
             placeholder="Enter speed"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.speed }"
           />
+          <p v-if="errors.speed" class="mt-1 text-xs text-rose-500">{{ errors.speed[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Purchase Price</label>
@@ -170,7 +196,9 @@ async function submit() {
             placeholder="Enter purchase price"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.purchase_price }"
           />
+          <p v-if="errors.purchase_price" class="mt-1 text-xs text-rose-500">{{ errors.purchase_price[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Sale Price</label>
@@ -181,7 +209,9 @@ async function submit() {
             placeholder="Enter sale price"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.sale_price }"
           />
+          <p v-if="errors.sale_price" class="mt-1 text-xs text-rose-500">{{ errors.sale_price[0] }}</p>
         </div>
         <div class="flex items-center gap-2 mt-6">
           <input id="active" type="checkbox" v-model="form.is_active" class="accent-gray-600">
@@ -196,7 +226,9 @@ async function submit() {
           placeholder="Enter description..."
           size="small"
           fluid
+          :class="{ 'border-rose-500': errors.description }"
         />
+        <p v-if="errors.description" class="mt-1 text-xs text-rose-500">{{ errors.description[0] }}</p>
       </div>
       <div class="pt-2 flex justify-end gap-2">
         <button type="button" @click="emit('update:visible', false)" class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">Cancel</button>

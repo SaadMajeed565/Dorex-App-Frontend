@@ -5,6 +5,7 @@ import MiniSidebar from "./partials/MiniSidebar.vue";
 import Sidebar from "./partials/Sidebar.vue";
 import MobileBottomNav from "./partials/MobileBottomNav.vue";
 import MobileSidebarDrawer from "./partials/MobileSidebarDrawer.vue";
+import UserAvatarMenu from "../components/UserAvatarMenu.vue";
 import { useThemeStore } from "../stores/themeStore";
 import { useAuthStore } from "../stores/authStore";
 import { ref } from "vue";
@@ -96,9 +97,7 @@ function toggleTheme() {
 
               <!-- Avatar - Hidden on mobile -->
               <div class="hidden sm:flex items-center pl-2">
-                <div class="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-400 to-sky-400 flex items-center justify-center text-white text-xs font-medium shadow-sm">
-                  S
-                </div>
+                <UserAvatarMenu />
               </div>
             </div>
           </div>

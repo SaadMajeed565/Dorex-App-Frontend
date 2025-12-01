@@ -20,6 +20,7 @@ const previewUrl = ref<string|null>(null)
 const dialogFormRef = ref<HTMLElement|null>(null)
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const errors = ref<Record<string, string[]>>({})
 
 const initialFormState = {
   name: '',
@@ -144,6 +145,7 @@ const clearFile = () => {
 
 async function submit() {
   loading.value = true
+  errors.value = {}
   // If selectedArea is an object, use its name; if it's a string (free-typed), use as is
   if (selectedArea.value && typeof selectedArea.value === 'object') {
     form.value.area = selectedArea.value.name || '';
@@ -151,6 +153,7 @@ async function submit() {
     form.value.area = selectedArea.value;
   }
   if (!selectedRole.value?.name) {
+    errors.value.designation = ['Please select a designation (role) for this employee'];
     toast.add({
       severity: 'error',
       summary: 'Validation Error',
@@ -171,6 +174,7 @@ async function submit() {
       severity: 'success', summary: 'Success', detail: 'Employee created successfully!', life: 3000
     })
     form.value = { ...initialFormState }
+    errors.value = {}
     file.value = null
     selectedRole.value = null
     if (previewUrl.value) {
@@ -179,6 +183,22 @@ async function submit() {
     }
     emit('close')
   } catch (error: any) {
+    if (error.response?.data?.errors) {
+      const rawErrors = error.response.data.errors;
+      // Transform error messages: show "This field is required" when field is empty
+      errors.value = Object.keys(rawErrors).reduce((acc, key) => {
+        const fieldValue = form.value[key as keyof typeof form.value];
+        const isEmpty = fieldValue === null || fieldValue === undefined || fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '');
+        acc[key] = rawErrors[key].map((msg: string) => {
+          // If field is empty and error mentions "must be" or "required", show friendly message
+          if (isEmpty && (msg.toLowerCase().includes('must be') || msg.toLowerCase().includes('required'))) {
+            return 'This field is required';
+          }
+          return msg;
+        });
+        return acc;
+      }, {} as Record<string, string[]>);
+    }
     toast.add({
       severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Something went wrong.', life: 4000
     })
@@ -209,6 +229,7 @@ watch(() => props.visible, async (v) => {
     }
   } else {
     form.value = { ...initialFormState }
+    errors.value = {}
     file.value = null
     selectedRole.value = null
     if (previewUrl.value) {
@@ -234,23 +255,33 @@ watch(() => props.visible, async (v) => {
           <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
-              <InputText fluid size="small" label="Full Name" v-model="form.name" placeholder="e.g Muhammad Ali" />
+              <InputText fluid size="small" label="Full Name" v-model="form.name" placeholder="e.g Muhammad Ali" 
+                :class="{ 'border-rose-500': errors.name }" />
+              <p v-if="errors.name" class="mt-1 text-xs text-rose-500">{{ errors.name[0] }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Email</label>
-              <InputText fluid size="small" label="Email" v-model="form.email" placeholder="e.g user@mail.com" />
+              <InputText fluid size="small" label="Email" v-model="form.email" placeholder="e.g user@mail.com" 
+                :class="{ 'border-rose-500': errors.email }" />
+              <p v-if="errors.email" class="mt-1 text-xs text-rose-500">{{ errors.email[0] }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">NIC</label>
-              <InputText fluid size="small" label="NIC" v-model="form.nic" placeholder="XXXXX-XXXXXXX-X" />
+              <InputText fluid size="small" label="NIC" v-model="form.nic" placeholder="XXXXX-XXXXXXX-X" 
+                :class="{ 'border-rose-500': errors.nic }" />
+              <p v-if="errors.nic" class="mt-1 text-xs text-rose-500">{{ errors.nic[0] }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-              <InputText fluid size="small" label="Phone" v-model="form.phone" placeholder="0312-3456789" />
+              <InputText fluid size="small" label="Phone" v-model="form.phone" placeholder="0312-3456789" 
+                :class="{ 'border-rose-500': errors.phone }" />
+              <p v-if="errors.phone" class="mt-1 text-xs text-rose-500">{{ errors.phone[0] }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Alternative Phone</label>
-              <InputText fluid size="small" label="Alternative Phone" v-model="form.alternative_phone" placeholder="0312-3456789" />
+              <InputText fluid size="small" label="Alternative Phone" v-model="form.alternative_phone" placeholder="0312-3456789" 
+                :class="{ 'border-rose-500': errors.alternative_phone }" />
+              <p v-if="errors.alternative_phone" class="mt-1 text-xs text-rose-500">{{ errors.alternative_phone[0] }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Area</label>
@@ -264,6 +295,7 @@ watch(() => props.visible, async (v) => {
                 fluid
                 :loading="areaLoading"
                 class="w-full"
+                :class="{ 'border-rose-500': errors.area }"
                 dropdown
               >
                 <template #item="{ option }">
@@ -273,10 +305,13 @@ watch(() => props.visible, async (v) => {
                   </div>
                 </template>
               </AutoComplete>
+              <p v-if="errors.area" class="mt-1 text-xs text-rose-500">{{ errors.area[0] }}</p>
             </div>
             <div class="md:col-span-2">
               <label class="block text-xs font-medium text-gray-700 mb-1">Address</label>
-              <InputText fluid size="small" label="Address" v-model="form.address" placeholder="Employee address" />
+              <InputText fluid size="small" label="Address" v-model="form.address" placeholder="Employee address" 
+                :class="{ 'border-rose-500': errors.address }" />
+              <p v-if="errors.address" class="mt-1 text-xs text-rose-500">{{ errors.address[0] }}</p>
             </div>
           </div>
         </div>
@@ -288,11 +323,15 @@ watch(() => props.visible, async (v) => {
           <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Login ID</label>
-              <InputText fluid size="small" label="Login ID" v-model="form.login_id" placeholder="Unique login ID" />
+              <InputText fluid size="small" label="Login ID" v-model="form.login_id" placeholder="Unique login ID" 
+                :class="{ 'border-rose-500': errors.login_id }" />
+              <p v-if="errors.login_id" class="mt-1 text-xs text-rose-500">{{ errors.login_id[0] }}</p>
         </div>
         <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Password</label>
-              <Password fluid size="small" v-model="form.password" toggleMask :feedback="false" class="w-full" />
+              <Password fluid size="small" v-model="form.password" toggleMask :feedback="false" class="w-full" 
+                :class="{ 'border-rose-500': errors.password }" />
+              <p v-if="errors.password" class="mt-1 text-xs text-rose-500">{{ errors.password[0] }}</p>
             </div>
             <div class="md:col-span-2">
               <label class="block text-xs font-medium text-gray-700 mb-1">Designation</label>
@@ -308,6 +347,7 @@ watch(() => props.visible, async (v) => {
                 :loading="rolesStore.loading"
                 :force-selection="true"
                 class="w-full"
+                :class="{ 'border-rose-500': errors.designation }"
               >
                 <template #item="{ option }">
                   <div class="flex flex-col">
@@ -316,7 +356,8 @@ watch(() => props.visible, async (v) => {
                   </div>
                 </template>
               </AutoComplete>
-              <p class="mt-1 text-xs text-gray-500">
+              <p v-if="errors.designation" class="mt-1 text-xs text-rose-500">{{ errors.designation[0] }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">
                 Choose an existing role. The role controls what this employee can access.
               </p>
             </div>

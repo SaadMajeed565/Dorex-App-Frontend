@@ -24,6 +24,7 @@ const form = ref({
 });
 const loading = ref(false);
 const dialogFormRef = ref<HTMLElement | null>(null);
+const errors = ref<Record<string, string[]>>({});
 const areas = ref<any[]>([]);
 const areasLoading = ref(false);
 const selectedParentArea = ref<any>(null);
@@ -125,6 +126,7 @@ watch(
         infrastructure: '', 
         manager: '' 
       };
+      errors.value = {};
       selectedParentArea.value = null;
       parentSearchTerm.value = '';
       selectedManager.value = null;
@@ -137,6 +139,7 @@ watch(
 async function submit() {
   if (loading.value) return;
   loading.value = true;
+  errors.value = {};
   try {
     const res = await axiosClient.post('/areas', form.value);
     emit('created', res.data);
@@ -150,6 +153,24 @@ async function submit() {
       infrastructure: '', 
       manager: '' 
     };
+    errors.value = {};
+  } catch (error: any) {
+    if (error.response?.data?.errors) {
+      const rawErrors = error.response.data.errors;
+      // Transform error messages: show "This field is required" when field is empty
+      errors.value = Object.keys(rawErrors).reduce((acc, key) => {
+        const fieldValue = form.value[key as keyof typeof form.value];
+        const isEmpty = fieldValue === null || fieldValue === undefined || fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '');
+        acc[key] = rawErrors[key].map((msg: string) => {
+          // If field is empty and error mentions "must be" or "required", show friendly message
+          if (isEmpty && (msg.toLowerCase().includes('must be') || msg.toLowerCase().includes('required'))) {
+            return 'This field is required';
+          }
+          return msg;
+        });
+        return acc;
+      }, {} as Record<string, string[]>);
+    }
   } finally {
     loading.value = false;
   }
@@ -175,7 +196,9 @@ async function submit() {
             placeholder="Enter area name"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.name }"
           />
+          <p v-if="errors.name" class="mt-1 text-xs text-rose-500">{{ errors.name[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Code</label>
@@ -184,7 +207,9 @@ async function submit() {
             placeholder="Enter area code"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.code }"
           />
+          <p v-if="errors.code" class="mt-1 text-xs text-rose-500">{{ errors.code[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Status</label>
@@ -200,7 +225,9 @@ async function submit() {
             placeholder="Select status"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.status }"
           />
+          <p v-if="errors.status" class="mt-1 text-xs text-rose-500">{{ errors.status[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Infrastructure</label>
@@ -216,7 +243,9 @@ async function submit() {
             placeholder="Select infrastructure"
             size="small"
             fluid
+            :class="{ 'border-rose-500': errors.infrastructure }"
           />
+          <p v-if="errors.infrastructure" class="mt-1 text-xs text-rose-500">{{ errors.infrastructure[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Manager</label>
@@ -231,6 +260,7 @@ async function submit() {
             placeholder="Search for manager..."
             :loading="employeesLoading"
             class="w-full"
+            :class="{ 'border-rose-500': errors.manager }"
             dropdown
           >
             <template #item="{ option }">
@@ -240,6 +270,7 @@ async function submit() {
               </div>
             </template>
           </AutoComplete>
+          <p v-if="errors.manager" class="mt-1 text-xs text-rose-500">{{ errors.manager[0] }}</p>
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">Parent Area</label>
@@ -254,6 +285,7 @@ async function submit() {
             placeholder="Search for parent area..."
             :loading="areasLoading"
             class="w-full"
+            :class="{ 'border-rose-500': errors.parent_area_id }"
             dropdown
           >
             <template #item="{ option }">
@@ -263,6 +295,7 @@ async function submit() {
               </div>
             </template>
           </AutoComplete>
+          <p v-if="errors.parent_area_id" class="mt-1 text-xs text-rose-500">{{ errors.parent_area_id[0] }}</p>
         </div>
       </div>
       <div>
@@ -273,7 +306,9 @@ async function submit() {
           placeholder="Enter coverage map JSON..."
           size="small"
           fluid
+          :class="{ 'border-rose-500': errors.coverage_map }"
         />
+        <p v-if="errors.coverage_map" class="mt-1 text-xs text-rose-500">{{ errors.coverage_map[0] }}</p>
       </div>
       <div class="pt-2 flex justify-end gap-2">
         <button type="button" @click="emit('update:visible', false)" class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">Cancel</button>

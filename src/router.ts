@@ -201,6 +201,24 @@ const routes = [
         meta: requireAuth("create-payment"),
 	},
 	{
+		name: "Invoices.Index",
+		path: "/invoices",
+		component: () => import("./pages/Invoices/Index.vue"),
+        meta: requireAuth("view-invoice"),
+	},
+	{
+		name: "Invoices.Create",
+		path: "/invoices/create",
+		component: () => import("./pages/Invoices/AddInvoice.vue"),
+        meta: requireAuth("create-invoice"),
+	},
+	{
+		name: "Invoices.Show",
+		path: "/invoices/:id",
+		component: () => import("./pages/Invoices/Show.vue"),
+        meta: requireAuth("view-invoice"),
+	},
+	{
 		name: "Complaints.Index",
 		path: "/complaints",
 		component: () => import("./pages/Complaints/Index.vue"),
@@ -259,6 +277,12 @@ const routes = [
 		path: "/contacts",
 		component: () => import("./pages/Contacts/Index.vue"),
         meta: requireAuth("view-customer"),
+	},
+	{
+		name: "Profile.Index",
+		path: "/profile",
+		component: () => import("./pages/Profile/Index.vue"),
+        meta: requireAuth(),
 	},
 	{
 		name: "Settings.Index",

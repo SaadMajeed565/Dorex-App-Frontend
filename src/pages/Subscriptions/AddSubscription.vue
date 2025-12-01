@@ -40,11 +40,7 @@ const toast = useToast()
 const loading = ref(false)
 
 // Error validation
-const errors = ref<{
-  customer_id?: string
-  package_id?: string
-  start_date?: string
-}>({})
+const errors = ref<Record<string, string[]>>({})
 
 // Form data
 const initialFormState = {
@@ -226,29 +222,6 @@ const submitForm = async () => {
   // Clear previous errors
   errors.value = {}
   
-  // Validate required fields
-  let hasErrors = false
-  
-  if (!form.value.customer_id) {
-    errors.value.customer_id = 'Customer is required'
-    hasErrors = true
-  }
-  
-  if (!form.value.package_id) {
-    errors.value.package_id = 'Package is required'
-    hasErrors = true
-  }
-  
-  if (!form.value.start_date) {
-    errors.value.start_date = 'Start date is required'
-    hasErrors = true
-  }
-  
-  if (hasErrors) {
-    loading.value = false
-    return
-  }
-  
   try {
 
     const payload = {
@@ -302,6 +275,31 @@ const submitForm = async () => {
     emit('created', res.data)
     emit('update:visible', false)
   } catch (error: any) {
+    if (error.response?.data?.errors) {
+      const rawErrors = error.response.data.errors;
+      // Transform error messages: show "This field is required" when field is empty
+      errors.value = Object.keys(rawErrors).reduce((acc, key) => {
+        let fieldValue: any;
+        if (key === 'customer_id') {
+          fieldValue = form.value.customer_id;
+        } else if (key === 'package_id') {
+          fieldValue = form.value.package_id;
+        } else if (key === 'supervisor_id') {
+          fieldValue = form.value.supervisor_id;
+        } else {
+          fieldValue = form.value[key as keyof typeof form.value];
+        }
+        const isEmpty = fieldValue === null || fieldValue === undefined || fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '');
+        acc[key] = rawErrors[key].map((msg: string) => {
+          // If field is empty and error mentions "must be" or "required", show friendly message
+          if (isEmpty && (msg.toLowerCase().includes('must be') || msg.toLowerCase().includes('required'))) {
+            return 'This field is required';
+          }
+          return msg;
+        });
+        return acc;
+      }, {} as Record<string, string[]>);
+    }
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -385,7 +383,7 @@ watch(
             :disabled="dataLoading"
           >
           </AutoComplete>
-          <p v-if="errors.customer_id" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.customer_id }}</p>
+          <p v-if="errors.customer_id" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.customer_id[0] }}</p>
         </div>
 
         <!-- Package -->
@@ -406,7 +404,7 @@ watch(
             :disabled="dataLoading"
           >
           </AutoComplete>
-          <p v-if="errors.package_id" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.package_id }}</p>
+          <p v-if="errors.package_id" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.package_id[0] }}</p>
         </div>
 
         <!-- Supervisor -->
@@ -423,9 +421,11 @@ watch(
             :optionLabel="(e) => `${e.name} - ${e.designation}`"
             placeholder="Search employees by name or designation"
             class="w-full"
+            :class="{ 'border-rose-500': errors.supervisor_id }"
             :minLength="1"
           >
           </AutoComplete>
+          <p v-if="errors.supervisor_id" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.supervisor_id[0] }}</p>
         </div>
       </div>
 
@@ -443,7 +443,7 @@ watch(
             class="w-full"
             dateFormat="yy-mm-dd"
           />
-          <p v-if="errors.start_date" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.start_date }}</p>
+          <p v-if="errors.start_date" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.start_date[0] }}</p>
           <p v-else class="mt-1 text-xs text-gray-500">Format: yyyy-mm-dd</p>
         </div>
 
@@ -457,9 +457,11 @@ watch(
             v-model="form.end_date"
             placeholder="Select end date (optional)"
             class="w-full"
+            :class="{ 'border-rose-500': errors.end_date }"
             dateFormat="yy-mm-dd"
           />
-          <p class="mt-1 text-xs text-gray-500">Leave empty for ongoing.</p>
+          <p v-if="errors.end_date" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.end_date[0] }}</p>
+          <p v-else class="mt-1 text-xs text-gray-500">Leave empty for ongoing.</p>
         </div>
 
         <!-- Status -->
@@ -474,7 +476,9 @@ watch(
             optionLabel="label"
             optionValue="value"
             class="w-full"
+            :class="{ 'border-rose-500': errors.status }"
           />
+          <p v-if="errors.status" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.status[0] }}</p>
         </div>
       </div>
     </form>

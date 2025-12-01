@@ -26,6 +26,7 @@ const sidebarOptions = {
     { label: "Customers", name: "Customers.Index", icon: "fa-regular fa-users" },
     { label: "Subscriptions", name: "Subscriptions.Index", icon: "fa-regular fa-badge-check" },
     { label: "Payments", name: "Payments.Index", icon: "fa-regular fa-credit-card" },
+    { label: "Invoices", name: "Invoices.Index", icon: "fa-regular fa-file-invoice" },
   ],
   network: [
     { label: "Areas", name: "Areas.Index", icon: "fa-regular fa-map-location-dot" },
@@ -39,7 +40,7 @@ const sidebarOptions = {
     { label: "Tasks", name: "Tasks.Index", icon: "fa-regular fa-list-check" },
   ],
   business: [
-    // { label: "Accounts", name: "Accounts.Index", icon: "fa-regular fa-books" },
+    { label: "Accounts", name: "Accounts.Index", icon: "fa-regular fa-books" },
     { label: "Communications", name: "Communications.Index", icon: "fa-regular fa-messages" },
   ],
   settings: [

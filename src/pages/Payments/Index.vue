@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import MasterLayout from '../../layouts/MasterLayout.vue';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import axiosClient from '../../axios';
 import AddPayment from './AddPayment.vue';
 import ImportDialog from '../../components/ImportDialog.vue';
 import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+import { useToast } from 'primevue/usetoast';
+import ShowInvoice from '../Invoices/Show.vue';
+
+const router = useRouter();
+const toast = useToast();
 
 const generalSettingsStore = useGeneralSettingsStore();
 const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
@@ -19,6 +25,8 @@ type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
 interface Payment {
   id: string;
   customer: string;
+  customer_id?: number;
+  subscription_id?: number;
   amountCents: number;
   currency: string;
   status: PaymentStatus;
@@ -33,7 +41,7 @@ const statusFilter = ref<PaymentStatus | 'all'>('all');
 const page = ref(1);
 const pageSize = ref(10);
 
-const formatCurrency = (amountCents: number, currency: string) => {
+const formatCurrencyCents = (amountCents: number, currency: string) => {
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
@@ -114,6 +122,56 @@ const copyToClipboard = async (text: string) => {
   }
 };
 
+// Generate invoice from payment
+const generatingInvoice = ref<string | null>(null);
+const showInvoiceModal = ref(false);
+const createdInvoice = ref<any>(null);
+
+const generateInvoice = async (paymentId: string) => {
+  generatingInvoice.value = paymentId;
+  try {
+    const response = await axiosClient.post('/invoices-from-payment', {
+      payment_id: paymentId,
+    });
+    
+    createdInvoice.value = response.data?.data || response.data;
+    showInvoiceModal.value = true;
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Invoice Generated',
+      detail: 'Invoice created successfully.',
+      life: 3000,
+    });
+    
+    // Refresh payments list
+    await fetchPayments();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to generate invoice',
+      life: 4000,
+    });
+  } finally {
+    generatingInvoice.value = null;
+  }
+};
+
+const handleInvoiceModalClose = () => {
+  showInvoiceModal.value = false;
+  createdInvoice.value = null;
+};
+
+const openCustomerModal = (customerId: number) => {
+  router.push({ name: 'Customers.Index', query: { show: customerId } });
+};
+
+const openSubscriptionModal = (subscriptionId: number) => {
+  router.push({ name: 'Subscriptions.Index', query: { show: subscriptionId } });
+};
+
+
 const totalPayments = computed(() => payments.value.length);
 const totalAmountCents = computed(() => payments.value.reduce((sum, p) => sum + p.amountCents, 0));
 const totalPaid = computed(() => payments.value.filter((p) => p.status === 'paid').length);
@@ -149,6 +207,8 @@ const fetchPayments = async () => {
       return {
         id,
         customer: String(customerName),
+        customer_id: item?.customer_id ?? item?.customer?.id,
+        subscription_id: item?.subscription_id ?? item?.subscription?.id,
         amountCents: typeof amount === 'number' ? Math.round(amount) : Number(amount) * (Number(amount) < 1000 ? 100 : 1),
         currency: String(currency).toUpperCase(),
         status: normalizeStatus(item?.status),
@@ -300,7 +360,7 @@ onMounted(async () => {
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm font-medium text-gray-500">Total Volume</p>
-            <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency) }}</p>
+            <p class="text-2xl font-bold text-gray-900">{{ formatCurrencyCents(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency) }}</p>
             <p v-if="payments.length > 0 && payments.some(p => p.currency !== (payments[0]?.currency || tenantCurrency))" class="text-xs text-gray-400 mt-1">Multiple currencies</p>
           </div>
           <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
@@ -365,8 +425,16 @@ onMounted(async () => {
                 <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ payment.id }}</td>
                 <td class="px-4 py-3">
                   <div class="text-sm text-gray-900">{{ payment.customer }}</div>
+                  <div v-if="payment.customer_id" class="flex items-center gap-2 mt-1">
+                    <button 
+                      @click.stop="openCustomerModal(payment.customer_id!)"
+                      class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+                    >
+                      <i class="fa-light fa-user"></i> View Customer
+                    </button>
+                  </div>
                 </td>
-                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ formatCurrency(payment.amountCents, payment.currency) }}</td>
+                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ formatCurrencyCents(payment.amountCents, payment.currency) }}</td>
                 <td class="px-4 py-3">
                   <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium" :class="statusClasses(payment.status)">
                     <span
@@ -383,7 +451,30 @@ onMounted(async () => {
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-900">{{ formatDate(payment.createdAt) }}</td>
                 <td class="px-4 py-3 text-right text-sm">
-                  <button class="text-indigo-600 hover:text-indigo-500" @click="() => copyToClipboard(payment.id)">Copy ID</button>
+                  <div class="flex items-center justify-end gap-2">
+                    <button 
+                      @click="generateInvoice(payment.id)"
+                      :disabled="generatingInvoice === payment.id"
+                      class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-500 disabled:opacity-50"
+                      title="Generate Invoice"
+                    >
+                      <i class="fa-light fa-file-invoice text-sm"></i>
+                      <span v-if="generatingInvoice === payment.id">...</span>
+                      <span v-else>Invoice</span>
+                    </button>
+                    <span v-if="payment.subscription_id" class="text-gray-300">|</span>
+                    <button 
+                      v-if="payment.subscription_id"
+                      @click.stop="openSubscriptionModal(payment.subscription_id!)"
+                      class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-500"
+                      title="View Subscription"
+                    >
+                      <i class="fa-light fa-list-check text-sm"></i>
+                      Subscription
+                    </button>
+                    <span class="text-gray-300">|</span>
+                    <button class="text-gray-600 hover:text-gray-800" @click="() => copyToClipboard(payment.id)">Copy ID</button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -417,6 +508,15 @@ onMounted(async () => {
     </template>
     <AddPayment ref="addPaymentRef" v-model:visible="showAddPayment" @created="(data: any) => handlePaymentCreated(data)" />
     <ImportDialog v-model="showImportDialog" module="payments" @imported="fetchPayments" />
+
+    <!-- Invoice View Modal -->
+    <ShowInvoice
+      v-if="createdInvoice"
+      :visible="showInvoiceModal"
+      :invoice-data="createdInvoice"
+      @update:visible="handleInvoiceModalClose"
+    />
+
   </MasterLayout>
 </template>
 

@@ -26,6 +26,7 @@ const toast = useToast()
 const customerStore = useCustomerStore()
 const loading = ref(false)
 const file = ref<File | null>(null)
+const errors = ref<Record<string, string[]>>({})
 
 // Form fields (combined for both tables)
 const initialFormState = {
@@ -143,6 +144,7 @@ const clearFile = () => {
 // Submit function
 const submitForm = async () => {
   loading.value = true
+  errors.value = {}
   // If selectedArea is an object, use its name; if it's a string (free-typed), use as is
   if (selectedArea.value && typeof selectedArea.value === 'object') {
     form.value.area = selectedArea.value.name || '';
@@ -191,6 +193,7 @@ const submitForm = async () => {
 
     // reset to initial defaults
     form.value = { ...initialFormState }
+    errors.value = {}
     file.value = null
     if (previewUrl.value) {
       URL.revokeObjectURL(previewUrl.value)
@@ -201,6 +204,22 @@ const submitForm = async () => {
     emit('created')
     emit('update:visible', false)
   } catch (error: any) {
+    if (error.response?.data?.errors) {
+      const rawErrors = error.response.data.errors;
+      // Transform error messages: show "This field is required" when field is empty
+      errors.value = Object.keys(rawErrors).reduce((acc, key) => {
+        const fieldValue = form.value[key as keyof typeof form.value];
+        const isEmpty = fieldValue === null || fieldValue === undefined || fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '');
+        acc[key] = rawErrors[key].map((msg: string) => {
+          // If field is empty and error mentions "must be" or "required", show friendly message
+          if (isEmpty && (msg.toLowerCase().includes('must be') || msg.toLowerCase().includes('required'))) {
+            return 'This field is required';
+          }
+          return msg;
+        });
+        return acc;
+      }, {} as Record<string, string[]>);
+    }
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -273,28 +292,38 @@ watch(
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
-              <InputText fluid size="small" label="Full Name" v-model="form.name" placeholder="e.g Muhammad Ali" />
+              <InputText fluid size="small" label="Full Name" v-model="form.name" placeholder="e.g Muhammad Ali" 
+                :class="{ 'border-rose-500': errors.name }" />
+              <p v-if="errors.name" class="mt-1 text-xs text-rose-500">{{ errors.name[0] }}</p>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Customer Email</label>
-              <InputText fluid size="small" label="Email" v-model="form.email" placeholder="e.g user@mail.com" />
+              <InputText fluid size="small" label="Email" v-model="form.email" placeholder="e.g user@mail.com" 
+                :class="{ 'border-rose-500': errors.email }" />
+              <p v-if="errors.email" class="mt-1 text-xs text-rose-500">{{ errors.email[0] }}</p>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Customer NIC</label>
-              <InputText fluid size="small" label="NIC" v-model="form.nic" placeholder="XXXXX-XXXXXXX-X" />
+              <InputText fluid size="small" label="NIC" v-model="form.nic" placeholder="XXXXX-XXXXXXX-X" 
+                :class="{ 'border-rose-500': errors.nic }" />
+              <p v-if="errors.nic" class="mt-1 text-xs text-rose-500">{{ errors.nic[0] }}</p>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Customer Phone (Primary)</label>
-              <InputText fluid size="small" label="Phone" v-model="form.phone" placeholder="0312-3456789" />
+              <InputText fluid size="small" label="Phone" v-model="form.phone" placeholder="0312-3456789" 
+                :class="{ 'border-rose-500': errors.phone }" />
+              <p v-if="errors.phone" class="mt-1 text-xs text-rose-500">{{ errors.phone[0] }}</p>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Customer Phone (Optional)</label>
               <InputText fluid size="small" label="Alternative Phone" v-model="form.alternative_phone"
-                placeholder="0312-3456789" />
+                placeholder="0312-3456789" 
+                :class="{ 'border-rose-500': errors.alternative_phone }" />
+              <p v-if="errors.alternative_phone" class="mt-1 text-xs text-rose-500">{{ errors.alternative_phone[0] }}</p>
             </div>
 
             <div>
@@ -309,6 +338,7 @@ watch(
                 fluid
                 :loading="areaLoading"
                 class="w-full"
+                :class="{ 'border-rose-500': errors.area }"
                 dropdown
               >
                 <template #item="{ option }">
@@ -318,11 +348,14 @@ watch(
                   </div>
                 </template>
               </AutoComplete>
+              <p v-if="errors.area" class="mt-1 text-xs text-rose-500">{{ errors.area[0] }}</p>
             </div>
 
             <div class="md:col-span-2">
               <label class="block text-xs font-medium text-gray-700 mb-1">Address</label>
-              <InputText fluid size="small" label="Address" v-model="form.address" placeholder="Customer address" />
+              <InputText fluid size="small" label="Address" v-model="form.address" placeholder="Customer address" 
+                :class="{ 'border-rose-500': errors.address }" />
+              <p v-if="errors.address" class="mt-1 text-xs text-rose-500">{{ errors.address[0] }}</p>
             </div>
           </div>
         </div>
@@ -336,23 +369,31 @@ watch(
           <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Login ID</label>
-              <InputText fluid size="small" label="Login ID" v-model="form.login_id" placeholder="Unique login ID" />
+              <InputText fluid size="small" label="Login ID" v-model="form.login_id" placeholder="Unique login ID" 
+                :class="{ 'border-rose-500': errors.login_id }" />
+              <p v-if="errors.login_id" class="mt-1 text-xs text-rose-500">{{ errors.login_id[0] }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Password</label>
-              <Password fluid size="small" v-model="form.password" toggleMask :feedback="false" class="w-full" />
-              <p class="mt-1 text-xs text-gray-500">Use at least 8 characters, mixing letters and numbers.</p>
+              <Password fluid size="small" v-model="form.password" toggleMask :feedback="false" class="w-full" 
+                :class="{ 'border-rose-500': errors.password }" />
+              <p v-if="errors.password" class="mt-1 text-xs text-rose-500">{{ errors.password[0] }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">Use at least 8 characters, mixing letters and numbers.</p>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Router Panel ID</label>
-              <InputText fluid size="small" label="Panel ID" v-model="form.panel_id" placeholder="Enter panel ID" />
+              <InputText fluid size="small" label="Panel ID" v-model="form.panel_id" placeholder="Enter panel ID" 
+                :class="{ 'border-rose-500': errors.panel_id }" />
+              <p v-if="errors.panel_id" class="mt-1 text-xs text-rose-500">{{ errors.panel_id[0] }}</p>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Router Panel Password</label>
               <InputText fluid size="small" label="Panel Password" v-model="form.panel_password"
-                placeholder="Enter panel password" />
+                placeholder="Enter panel password" 
+                :class="{ 'border-rose-500': errors.panel_password }" />
+              <p v-if="errors.panel_password" class="mt-1 text-xs text-rose-500">{{ errors.panel_password[0] }}</p>
             </div>
             <!-- <Select size="small" label="Current Role" v-model="form.current_role" :options="roles" optionLabel="label" optionValue="value" />
                 <Select size="small" label="Status" v-model="form.status" :options="statuses" optionLabel="label" optionValue="value" /> -->
@@ -369,13 +410,17 @@ watch(
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Fee Amount</label>
               <InputNumber size="small" v-model="form.fee_amount" mode="currency" :currency="tenantCurrency"
-                class="w-full" />
-              <p class="mt-1 text-xs text-gray-500">Amount charged per billing cycle.</p>
+                class="w-full" 
+                :class="{ 'border-rose-500': errors.fee_amount }" />
+              <p v-if="errors.fee_amount" class="mt-1 text-xs text-rose-500">{{ errors.fee_amount[0] }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">Amount charged per billing cycle.</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1">Payment Date</label>
-              <DatePicker size="small" v-model="form.payment_date" dateFormat="yy-mm-dd" class="w-full" />
-              <p class="mt-1 text-xs text-gray-500">Format: yyyy-mm-dd.</p>
+              <DatePicker size="small" v-model="form.payment_date" dateFormat="yy-mm-dd" class="w-full" 
+                :class="{ 'border-rose-500': errors.payment_date }" />
+              <p v-if="errors.payment_date" class="mt-1 text-xs text-rose-500">{{ errors.payment_date[0] }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">Format: yyyy-mm-dd.</p>
             </div>
           </div>
         </div>

@@ -40,6 +40,16 @@ export const permissionCategories = [
     ]
   },
   {
+    category: 'Invoices',
+    icon: 'fa-regular fa-file-invoice',
+    permissions: [
+      { key: 'view-invoice', label: 'View Invoices' },
+      { key: 'create-invoice', label: 'Create Invoices' },
+      { key: 'update-invoice', label: 'Edit Invoices' },
+      { key: 'delete-invoice', label: 'Delete Invoices' }
+    ]
+  },
+  {
     category: 'Areas',
     icon: 'fa-regular fa-map-location-dot',
     permissions: [

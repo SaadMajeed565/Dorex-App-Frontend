@@ -1,23 +1,31 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import MasterLayout from '../../layouts/MasterLayout.vue'
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue'
 import axiosClient from '../../axios'
 import AddSubscription from './AddSubscription.vue'
 import ImportDialog from '../../components/ImportDialog.vue'
+import ShowSubscription from './Show.vue'
 import { useGeneralSettingsStore } from '../../stores/generalSettingsStore'
+
+const route = useRoute()
+const router = useRouter()
 
 const generalSettingsStore = useGeneralSettingsStore()
 const tenantCurrency = computed(() => generalSettingsStore.currencyUnit)
 
 const showAddSubscription = ref(false)
 const showImportDialog = ref(false)
+const showSubscriptionModal = ref(false)
+const selectedSubscriptionId = ref<number | null>(null)
 const addSubscriptionRef = ref()
 
 type SubscriptionStatus = 'Active' | 'Paused' | 'Cancelled' | string
 
 interface SubscriptionItem {
   id: number | string
+  customer_id?: number
   customerName?: string
   customerEmail?: string
   planName?: string
@@ -57,6 +65,7 @@ const mapSubscription = (item: any): SubscriptionItem => {
   
   return {
     id: item?.id,
+    customer_id: item?.customer_id ?? customer?.id,
     customerName: customer?.name,
     customerEmail: customer?.email,
     planName: pkg?.name ?? snapshot?.name,
@@ -74,15 +83,24 @@ const fetchSubscriptions = async () => {
   loading.value = true
   try {
     const res = await axiosClient.get('/subscriptions')
-    if (res?.data?.status === true && Array.isArray(res?.data?.data)) {
-      subscriptions.value = res.data.data.map(mapSubscription)
+    let dataArray: any[] = []
+    
+    // Handle paginated response structure
+    if (res?.data?.status === true && res?.data?.data) {
+      // Check if it's a paginated response (has data.data array)
+      if (res.data.data?.data && Array.isArray(res.data.data.data)) {
+        dataArray = res.data.data.data
+      } else if (Array.isArray(res.data.data)) {
+        // Direct array in data
+        dataArray = res.data.data
+      }
     } else if (Array.isArray(res?.data)) {
-      subscriptions.value = res.data
+      dataArray = res.data
     } else if (Array.isArray(res?.data?.subscriptions)) {
-      subscriptions.value = res.data.subscriptions
-    } else {
-      subscriptions.value = []
+      dataArray = res.data.subscriptions
     }
+    
+    subscriptions.value = dataArray.map(mapSubscription)
   } catch (err) {
     console.error('Error fetching subscriptions:', err)
     subscriptions.value = []
@@ -142,9 +160,45 @@ const formatCurrency = (amount?: number) => {
   }
 }
 
+const openCustomerModal = (customerId: number) => {
+  router.push({ name: 'Customers.Index', query: { show: customerId } })
+}
+
+const openSubscriptionModal = (subscriptionId: number | string) => {
+  selectedSubscriptionId.value = Number(subscriptionId)
+  showSubscriptionModal.value = true
+}
+
+// Function to handle query parameter
+const handleShowQuery = () => {
+  if (route.query.show) {
+    // Handle both string and array cases
+    const showValue = Array.isArray(route.query.show) ? route.query.show[0] : route.query.show
+    const id = Number(showValue)
+    if (!isNaN(id) && id > 0) {
+      selectedSubscriptionId.value = id
+      showSubscriptionModal.value = true
+      // Clean up query param
+      const newQuery = { ...route.query }
+      delete newQuery.show
+      router.replace({ query: newQuery })
+    }
+  }
+}
+
+// Watch for query parameters to auto-open subscription modal when navigating to this page
+watch(() => route.query.show, (showValue) => {
+  if (showValue) {
+    handleShowQuery()
+  }
+})
+
 onMounted(async () => {
   await generalSettingsStore.fetchSettings()
   fetchSubscriptions()
+  
+  // Check for query parameter on mount (handles initial page load with query param)
+  handleShowQuery()
 })
 </script>
 
@@ -281,6 +335,13 @@ onMounted(async () => {
                   <td class="px-4 py-3">
                     <div class="text-sm font-medium text-gray-900">{{ s.customerName || '—' }}</div>
                     <div class="text-sm text-gray-500">{{ s.customerEmail || '' }}</div>
+                    <button 
+                      v-if="s.customer_id"
+                      @click.stop="openCustomerModal(s.customer_id!)"
+                      class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline mt-1 inline-flex items-center gap-1"
+                    >
+                      <i class="fa-light fa-user"></i> View Customer
+                    </button>
                   </td>
                   <td class="px-4 py-3">
                     <div class="text-sm text-gray-900">{{ s.planName || '—' }}</div>
@@ -294,7 +355,14 @@ onMounted(async () => {
                   <td class="px-4 py-3 text-sm text-gray-900">{{ s.startDate ? new Date(s.startDate).toLocaleDateString() : '—' }}</td>
                   <td class="px-4 py-3 text-sm text-gray-900">{{ s.nextBillingDate ? new Date(s.nextBillingDate).toLocaleDateString() : '—' }}</td>
                   <td class="px-4 py-3 text-right text-sm">
-                    <button class="text-indigo-600 hover:text-indigo-500">Manage</button>
+                    <div class="flex items-center justify-end gap-2">
+                      <button 
+                        @click.stop="openSubscriptionModal(s.id)"
+                        class="text-indigo-600 hover:text-indigo-500"
+                      >
+                        View
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -320,5 +388,13 @@ onMounted(async () => {
     </template>
     <AddSubscription ref="addSubscriptionRef" v-model:visible="showAddSubscription" @created="(data: any) => handleSubscriptionCreated(data)" />
     <ImportDialog v-model="showImportDialog" module="subscriptions" @imported="fetchSubscriptions" />
+    
+    <!-- Subscription View Modal (opens when navigating to this page with ?show parameter) -->
+    <ShowSubscription
+      v-if="selectedSubscriptionId"
+      :visible="showSubscriptionModal"
+      :subscriptionId="selectedSubscriptionId"
+      @update:visible="(v: boolean) => { showSubscriptionModal = v; if (!v) selectedSubscriptionId = null; }"
+    />
   </MasterLayout>
 </template>
