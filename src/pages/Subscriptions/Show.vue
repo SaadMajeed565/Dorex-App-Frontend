@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import axiosClient from '../../axios';
 import Dialog from '../../volt/Dialog.vue';
 import { useToast } from 'primevue/usetoast';
+import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
 
 const props = defineProps<{
   visible: boolean;
@@ -16,19 +17,50 @@ const emit = defineEmits<{
 const subscription = ref<any>(null);
 const loading = ref(false);
 const toast = useToast();
+const generalSettingsStore = useGeneralSettingsStore();
+const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
+
+const formatCurrency = (amount?: number) => {
+  const value = typeof amount === 'number' ? amount : 0;
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: tenantCurrency.value, maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return `${value.toFixed(0)} ${tenantCurrency.value}`;
+  }
+};
 
 const loadSubscription = async () => {
-  if (!props.subscriptionId) return;
+  if (!props.subscriptionId) {
+    console.warn('loadSubscription called without subscriptionId');
+    return;
+  }
   loading.value = true;
   try {
     const res = await axiosClient.get(`/subscriptions/${props.subscriptionId}`);
-    subscription.value = res.data.subscription || res.data.data;
+    // Backend returns: { status: true, data: SubscriptionResource }
+    subscription.value = res.data.data || res.data.subscription || res.data;
+    
+    // If still no data, log for debugging
+    if (!subscription.value) {
+      console.error('Subscription data not found in response:', res.data);
+      toast.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'Subscription data structure unexpected. Check console for details.',
+        life: 4000,
+      });
+    }
   } catch (error: any) {
     subscription.value = null;
+    console.error('Error loading subscription:', error);
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        error.message || 
+                        'Failed to load subscription data.';
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.message || 'Failed to load subscription data.',
+      detail: errorMessage,
       life: 4000,
     });
   } finally {
@@ -45,7 +77,18 @@ watch(
       subscription.value = null;
     }
   },
-  { immediate: false }
+  { immediate: true }
+);
+
+// Also watch for subscriptionId changes when modal is already open
+watch(
+  () => props.subscriptionId,
+  async (newId) => {
+    if (props.visible && newId) {
+      await loadSubscription();
+    }
+  },
+  { immediate: true }
 );
 </script>
 
@@ -71,24 +114,45 @@ watch(
 
       <dl class="grid grid-cols-1 gap-x-10 gap-y-3 text-sm sm:grid-cols-2">
         <div>
-          <dt class="text-gray-500">Customer ID</dt>
-          <dd class="text-gray-900">{{ subscription.customer_id || '-' }}</dd>
+          <dt class="text-gray-500">Customer</dt>
+          <dd class="text-gray-900">
+            <span v-if="subscription.customer?.name">{{ subscription.customer.name }}</span>
+            <span v-else-if="subscription.customer_id">ID: {{ subscription.customer_id }}</span>
+            <span v-else>—</span>
+          </dd>
+          <dd v-if="subscription.customer?.email" class="text-xs text-gray-500 mt-0.5">{{ subscription.customer.email }}</dd>
         </div>
         <div>
-          <dt class="text-gray-500">Package ID</dt>
-          <dd class="text-gray-900">{{ subscription.package_id || '-' }}</dd>
+          <dt class="text-gray-500">Package</dt>
+          <dd class="text-gray-900">
+            <span v-if="subscription.package?.name">{{ subscription.package.name }}</span>
+            <span v-else-if="subscription.package_snapshot?.name">{{ subscription.package_snapshot.name }}</span>
+            <span v-else-if="subscription.package_id">ID: {{ subscription.package_id }}</span>
+            <span v-else>—</span>
+          </dd>
+          <dd v-if="subscription.package?.speed" class="text-xs text-gray-500 mt-0.5">{{ subscription.package.speed }}</dd>
         </div>
         <div>
           <dt class="text-gray-500">Start Date</dt>
-          <dd class="text-gray-900">{{ subscription.start_date || '-' }}</dd>
+          <dd class="text-gray-900">{{ subscription.start_date ? new Date(subscription.start_date).toLocaleDateString() : '—' }}</dd>
         </div>
         <div>
           <dt class="text-gray-500">End Date</dt>
-          <dd class="text-gray-900">{{ subscription.end_date || '-' }}</dd>
+          <dd class="text-gray-900">{{ subscription.end_date ? new Date(subscription.end_date).toLocaleDateString() : '—' }}</dd>
         </div>
         <div>
           <dt class="text-gray-500">Status</dt>
-          <dd class="text-gray-900 capitalize">{{ subscription.status || '-' }}</dd>
+          <dd class="text-gray-900 capitalize">{{ subscription.status || '—' }}</dd>
+        </div>
+        <div v-if="subscription.package?.sale_price || subscription.package_snapshot?.sale_price">
+          <dt class="text-gray-500">Price</dt>
+          <dd class="text-gray-900 font-medium">
+            {{ formatCurrency(subscription.package?.sale_price || subscription.package_snapshot?.sale_price || 0) }}
+          </dd>
+        </div>
+        <div v-if="subscription.supervisor?.name">
+          <dt class="text-gray-500">Supervisor</dt>
+          <dd class="text-gray-900">{{ subscription.supervisor.name }}</dd>
         </div>
       </dl>
     </div>

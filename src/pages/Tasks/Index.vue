@@ -5,6 +5,7 @@ import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import axiosClient from '../../axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from '../../volt/ConfirmDialog.vue';
 import AddTask from './AddTask.vue';
 import EditTask from './EditTask.vue';
 import ViewTask from './ViewTask.vue';
@@ -71,6 +72,15 @@ const priorities = computed(() => {
 const types = computed(() => {
   const uniqueTypes = [...new Set(tasks.value.map(t => t.type))].filter(Boolean);
   return ['All', ...uniqueTypes.sort()];
+});
+
+const assignedEmployees = computed(() => {
+  const uniqueEmployees = [...new Set(
+    tasks.value
+      .filter(t => t.assigned_employee?.name)
+      .map(t => t.assigned_employee!.name)
+  )];
+  return ['All', ...uniqueEmployees.sort()];
 });
 
 // Computed properties
@@ -149,10 +159,15 @@ const fetchTasks = async () => {
   try {
     const res = await axiosClient.get('/tasks');
     let raw: any = [];
-    if (Array.isArray(res?.data)) raw = res.data;
-    else if (Array.isArray(res?.data?.data)) raw = res.data.data;
-    else if (Array.isArray(res?.data?.data?.data)) raw = res.data.data.data;
-    else raw = [];
+    
+    // Handle paginated response
+    if (res?.data?.data && Array.isArray(res.data.data)) {
+      raw = res.data.data;
+    } else if (Array.isArray(res?.data)) {
+      raw = res.data;
+    } else {
+      raw = [];
+    }
 
     tasks.value = raw.map((item: any) => ({
       id: item.id,
@@ -211,6 +226,15 @@ const startTask = async (task: Task) => {
     message: `Are you sure you want to start task "${task.title}"?`,
     header: 'Start Task',
     icon: 'pi pi-exclamation-triangle',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Start',
+      severity: 'success'
+    },
     accept: async () => {
       try {
         await axiosClient.post(`/tasks/${task.id}/start`);
@@ -238,6 +262,15 @@ const completeTask = async (task: Task) => {
     message: `Are you sure you want to mark task "${task.title}" as completed?`,
     header: 'Complete Task',
     icon: 'pi pi-exclamation-triangle',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Complete',
+      severity: 'success'
+    },
     accept: async () => {
       try {
         await axiosClient.post(`/tasks/${task.id}/complete`);
@@ -309,13 +342,22 @@ onMounted(() => {
           <h1 class="text-2xl font-bold text-gray-900">Tasks</h1>
           <p class="text-sm text-gray-500">Manage and track all tasks</p>
         </div>
-        <button
-          @click="showAddModal = true"
-          class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-        >
-          <i class="fa-light fa-plus"></i>
-          Add Task
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            @click="fetchTasks"
+            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <i class="fa-light fa-arrow-rotate-right"></i>
+            Refresh
+          </button>
+          <button
+            @click="showAddModal = true"
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+          >
+            <i class="fa-light fa-plus"></i>
+            Add Task
+          </button>
+        </div>
       </div>
 
       <!-- Stats -->
@@ -374,6 +416,12 @@ onMounted(() => {
               class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option v-for="type in types" :key="type" :value="type">{{ type }}</option>
+            </select>
+            <select
+              v-model="assignedFilter"
+              class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option v-for="employee in assignedEmployees" :key="employee" :value="employee">{{ employee }}</option>
             </select>
           </div>
         </div>
@@ -455,7 +503,8 @@ onMounted(() => {
                   </button>
                   <button
                     v-if="task.status === 'pending'"
-                    @click="startTask(task)"
+                    type="button"
+                    @click.stop="startTask(task)"
                     class="text-green-600 hover:text-green-500"
                     title="Start"
                   >
@@ -463,14 +512,16 @@ onMounted(() => {
                   </button>
                   <button
                     v-if="task.status === 'in_progress'"
-                    @click="completeTask(task)"
+                    type="button"
+                    @click.stop="completeTask(task)"
                     class="text-green-600 hover:text-green-500"
                     title="Complete"
                   >
                     <i class="fa-light fa-check"></i>
                   </button>
                   <button
-                    @click="deleteTask(task)"
+                    type="button"
+                    @click.stop="deleteTask(task)"
                     class="text-red-600 hover:text-red-500"
                     title="Delete"
                   >
@@ -485,6 +536,7 @@ onMounted(() => {
       </div>
 
       <!-- Modals -->
+      <ConfirmDialog />
       <AddTask v-model:visible="showAddModal" @created="handleTaskCreated" />
       <EditTask v-model:visible="showEditModal" :task="selectedTask" @updated="handleTaskUpdated" />
       <ViewTask v-model:visible="showViewModal" :task="selectedTask" />

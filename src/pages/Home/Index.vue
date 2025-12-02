@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axiosClient from '../../axios';
 import MasterLayout from '../../layouts/MasterLayout.vue';
 import { useToast } from 'primevue/usetoast';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+import { formatCurrency, formatCurrencyFull } from '../../utils/formatCurrency';
 
 const toast = useToast();
 const generalSettingsStore = useGeneralSettingsStore();
@@ -59,7 +60,11 @@ const complaintStatusColors: Record<string, string> = {
 const fetchDashboardData = async () => {
   loading.value = true;
   try {
-    const response = await axiosClient.get('/dashboard/overview');
+    const response = await axiosClient.get('/dashboard/overview', {
+      params: {
+        date_range: dateRange.value
+      }
+    });
     const data = response.data?.data ?? {};
 
     const customers = data.customers ?? {};
@@ -227,13 +232,8 @@ const getBarHeight = (value: number, max: number, chartHeight: number = 200) => 
 
 const currencyUnit = computed(() => generalSettingsStore.currencyUnit || 'PKR');
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currencyUnit.value,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount ?? 0);
+const formatCurrencyAmount = (amount: number) => {
+  return formatCurrency(amount ?? 0, currencyUnit.value, true);
 };
 
 const formatDate = (dateStr: string) => {
@@ -302,6 +302,11 @@ const getPieChartData = (data: { count: number; color: string }[]) => {
 const customerPieData = computed(() => getPieChartData(customerStatusData.value));
 const complaintPieData = computed(() => getPieChartData(complaintStatusData.value));
 
+// Watch for date range changes
+watch(dateRange, () => {
+  fetchDashboardData();
+});
+
 onMounted(async () => {
   if (!generalSettingsStore.loaded) {
     await generalSettingsStore.fetchSettings().catch(() => null);
@@ -353,7 +358,12 @@ onMounted(async () => {
           <div class="flex items-baseline justify-between">
             <p class="text-3xl font-bold text-gray-900">
               <template v-if="kpi.suffix === 'currency'">
-                {{ formatCurrency(kpi.value) }}
+                <span 
+                  class="cursor-help" 
+                  :title="formatCurrencyFull(kpi.value, currencyUnit)"
+                >
+                  {{ formatCurrencyAmount(kpi.value) }}
+                </span>
               </template>
               <template v-else>
                 {{ kpi.value.toLocaleString() }}
@@ -461,16 +471,26 @@ onMounted(async () => {
                       :style="{ 
                         height: getBarHeight(item.amount, getMaxValue(paymentTrendData, 'amount'), 180)
                       }"
-                      :title="`${formatCurrency(item.amount)}`"
+                      :title="formatCurrencyFull(item.amount, currencyUnit)"
                     >
                       <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 pointer-events-none">
-                        {{ formatCurrency(item.amount) }}
+                        <span 
+                          class="cursor-help" 
+                          :title="formatCurrencyFull(item.amount, currencyUnit)"
+                        >
+                          {{ formatCurrencyAmount(item.amount) }}
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div class="flex flex-col items-center gap-0.5 mt-auto">
                     <span class="text-xs text-gray-600 font-medium">{{ item.date }}</span>
-                    <span class="text-xs text-gray-500 font-semibold">{{ formatCurrency(item.amount) }}</span>
+                    <span 
+                      class="text-xs text-gray-500 font-semibold cursor-help" 
+                      :title="formatCurrencyFull(item.amount, currencyUnit)"
+                    >
+                      {{ formatCurrencyAmount(item.amount) }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -764,7 +784,12 @@ onMounted(async () => {
                 </div>
                 <div class="ml-4 text-right">
                   <p class="text-sm font-semibold text-gray-900">
-                    {{ formatCurrency(payment.amountCents ? payment.amountCents / 100 : (payment.amount || 0)) }}
+                    <span 
+                      class="cursor-help" 
+                      :title="formatCurrencyFull(payment.amountCents ? payment.amountCents / 100 : (payment.amount || 0), currencyUnit)"
+                    >
+                      {{ formatCurrencyAmount(payment.amountCents ? payment.amountCents / 100 : (payment.amount || 0)) }}
+                    </span>
                   </p>
                   <span 
                     :class="[

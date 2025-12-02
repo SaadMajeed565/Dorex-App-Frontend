@@ -1,5 +1,6 @@
 <template>
     <DatePicker
+        v-bind="{ ...props, ...attrs }"
         unstyled
         :pt="theme"
         :ptOptions="{
@@ -94,16 +95,20 @@
     </DatePicker>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import CalendarIcon from '@primevue/icons/calendar';
 import ChevronDownIcon from '@primevue/icons/chevrondown';
 import ChevronLeftIcon from '@primevue/icons/chevronleft';
 import ChevronRightIcon from '@primevue/icons/chevronright';
 import ChevronUpIcon from '@primevue/icons/chevronup';
-import DatePicker from 'primevue/datepicker';
-import { ref } from 'vue';
+import DatePicker, { type DatePickerProps } from 'primevue/datepicker';
+import { ref, useAttrs } from 'vue';
 import SecondaryButton from './SecondaryButton.vue';
 import { ptViewMerge } from './utils';
+
+interface Props extends /* @vue-ignore */ DatePickerProps {}
+const props = defineProps<Props>();
+const attrs = useAttrs();
 
 const theme = ref({
     root: `inline-flex max-w-full relative p-fluid:flex`,

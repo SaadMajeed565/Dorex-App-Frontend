@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import MasterLayout from '../../layouts/MasterLayout.vue';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import axiosClient from '../../axios';
@@ -8,6 +9,9 @@ import EditComplaint from './EditComplaint.vue';
 import ResolveComplaint from './ResolveComplaint.vue';
 import AddComplaint from './AddComplaint.vue';
 import ComplaintsAnalytics from './ComplaintsAnalytics.vue';
+
+const route = useRoute();
+const router = useRouter();
 
 // Interface for Complaint
 interface Complaint {
@@ -199,11 +203,85 @@ const fetchComplaints = async () => {
   }
 };
 
+// Function to handle query parameter
+const handleShowQuery = () => {
+  if (route.query.show) {
+    // Handle both string and array cases
+    const showValue = Array.isArray(route.query.show) ? route.query.show[0] : route.query.show;
+    const id = Number(showValue);
+    if (!isNaN(id) && id > 0) {
+      // Find the complaint in the list
+      const complaint = complaints.value.find(c => Number(c.id) === id);
+      if (complaint) {
+        selectedComplaint.value = complaint;
+        showViewModal.value = true;
+      } else {
+        // If complaint not in list, fetch it directly
+        fetchComplaintById(id);
+      }
+      // Clean up query param
+      const newQuery = { ...route.query };
+      delete newQuery.show;
+      router.replace({ query: newQuery });
+    }
+  }
+};
+
+// Fetch a single complaint by ID
+const fetchComplaintById = async (id: number) => {
+  try {
+    const res = await axiosClient.get(`/complaints/${id}`);
+    if (res.data?.complaint) {
+      const complaintData = res.data.complaint;
+      // Map the API response to our Complaint interface
+      const complaint: Complaint = {
+        id: complaintData.id,
+        customerName: complaintData.customer?.name || complaintData.customer?.user?.name || '—',
+        customerEmail: complaintData.customer?.email || complaintData.customer?.user?.email || '',
+        customerPhone: complaintData.customer?.phone || complaintData.customer?.user?.phone || '',
+        customerArea: complaintData.customer?.area || complaintData.customer?.user?.area || '',
+        ticketNumber: `TKT-${complaintData.id}`,
+        subject: complaintData.subject || 'No Subject',
+        description: complaintData.description || '',
+        priority: normalizePriority(complaintData.priority),
+        status: normalizeStatus(complaintData.status),
+        category: complaintData.category || 'Technical',
+        assignedTo: complaintData.assigned_employee?.name || complaintData.assigned_employee?.user?.name || 'Unassigned',
+        createdAt: complaintData.created_at || '',
+        lastUpdated: complaintData.updated_at || '',
+        resolution: complaintData.resolution || null,
+        area: complaintData.customer?.area || complaintData.customer?.user?.area || '',
+      };
+      selectedComplaint.value = complaint;
+      showViewModal.value = true;
+    }
+  } catch (error) {
+    console.error('Error fetching complaint:', error);
+  }
+};
+
+// Watch for query parameter changes
+watch(() => route.query.show, (showValue) => {
+  if (showValue) {
+    handleShowQuery();
+  }
+});
+
 // Modal handlers
 const openViewModal = (complaint: Complaint) => {
   selectedComplaint.value = complaint;
   showViewModal.value = true;
 };
+
+// Watch for modal close to clean up query
+watch(showViewModal, (isVisible) => {
+  if (!isVisible && route.query.show) {
+    // Clean up query param when modal closes
+    const newQuery = { ...route.query };
+    delete newQuery.show;
+    router.replace({ query: newQuery });
+  }
+});
 
 const openEditModal = (complaint: Complaint) => {
   selectedComplaint.value = complaint;
@@ -227,7 +305,10 @@ const handleComplaintCreated = () => {
   fetchComplaints();
 };
 
-onMounted(fetchComplaints);
+onMounted(() => {
+  fetchComplaints();
+  handleShowQuery();
+});
 </script>
 
 <template>
@@ -437,7 +518,6 @@ onMounted(fetchComplaints);
     />
     <ComplaintsAnalytics
       v-model:visible="showAnalyticsModal"
-      :complaints="complaints"
     />
   </MasterLayout>
 </template>

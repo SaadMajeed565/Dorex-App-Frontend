@@ -1,183 +1,105 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import Dialog from '../../volt/Dialog.vue';
+import axiosClient from '../../axios';
+import { useToast } from 'primevue/usetoast';
 
 const props = defineProps<{
   visible: boolean;
-  complaints: any[];
 }>();
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void;
 }>();
 
+const toast = useToast();
+
 // Date range filter
 const dateRange = ref('Last 7 days');
 const dateRanges = ['Today', 'Yesterday', 'Last 7 days', 'Last 28 days', 'Last 90 days', 'This month', 'Last month'];
 
-// Filter complaints by date range
-const filteredComplaints = computed(() => {
-  if (!props.complaints || props.complaints.length === 0) return [];
+// Analytics data
+const loading = ref(false);
+const metrics = ref<any[]>([]);
+const statusDistribution = ref<any[]>([]);
+const categoryDistribution = ref<any[]>([]);
+
+// Fetch analytics data from backend
+const fetchAnalytics = async () => {
+  if (!props.visible) return;
   
-  const now = new Date();
-  let cutoffDate: Date | null = null;
-
-  switch (dateRange.value) {
-    case 'Today':
-      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      break;
-    case 'Yesterday':
-      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const endOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      return props.complaints.filter(c => {
-        const created = new Date(c.createdAt);
-        return created >= cutoffDate! && created < endOfYesterday;
-      });
-    case 'Last 7 days':
-      cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case 'Last 28 days':
-      cutoffDate = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
-      break;
-    case 'Last 90 days':
-      cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      break;
-    case 'This month':
-      cutoffDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      break;
-    case 'Last month':
-      cutoffDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      return props.complaints.filter(c => {
-        const created = new Date(c.createdAt);
-        return created >= cutoffDate! && created <= lastDayOfLastMonth;
-      });
-  }
-
-  if (cutoffDate) {
-    return props.complaints.filter(c => {
-      const created = new Date(c.createdAt);
-      return created >= cutoffDate!;
+  loading.value = true;
+  try {
+    const response = await axiosClient.get('/complaints/analytics/overview', {
+      params: {
+        date_range: dateRange.value
+      }
     });
-  }
 
-  return props.complaints;
-});
-
-// Calculate previous period metrics for comparison
-const previousPeriodComplaints = computed(() => {
-  const complaints = props.complaints || [];
-  if (!complaints.length) return [];
-  
-  const now = new Date();
-  let cutoffStart: Date;
-  let cutoffEnd: Date;
-  
-  switch (dateRange.value) {
-    case 'Today':
-      cutoffStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      cutoffEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      break;
-    case 'Yesterday':
-      cutoffStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
-      cutoffEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      break;
-    case 'Last 7 days':
-      cutoffStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-      cutoffEnd = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case 'Last 28 days':
-      cutoffStart = new Date(now.getTime() - 56 * 24 * 60 * 60 * 1000);
-      cutoffEnd = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
-      break;
-    default:
-      return [];
-  }
-  
-  return complaints.filter(c => {
-    const created = new Date(c.createdAt);
-    return created >= cutoffStart && created < cutoffEnd;
-  });
-});
-
-// Key Metrics with delta comparison
-const metrics = computed(() => {
-  const complaints = filteredComplaints.value;
-  const prev = previousPeriodComplaints.value;
-  
-  const total = complaints.length;
-  const prevTotal = prev.length;
-  const totalDelta = prevTotal > 0 ? ((total - prevTotal) / prevTotal * 100) : 0;
-  
-  const open = complaints.filter(c => c.status === 'Open').length;
-  const prevOpen = prev.filter(c => c.status === 'Open').length;
-  const openDelta = prevOpen > 0 ? ((open - prevOpen) / prevOpen * 100) : 0;
-  
-  const resolved = complaints.filter(c => c.status === 'Resolved').length;
-  const prevResolved = prev.filter(c => c.status === 'Resolved').length;
-  const resolvedDelta = prevResolved > 0 ? ((resolved - prevResolved) / prevResolved * 100) : 0;
-  
-  // Calculate average resolution time (days)
-  const resolvedComplaints = complaints.filter(c => 
-    c.status === 'Resolved' || c.status === 'Closed'
-  );
-  let totalResolutionDays = 0;
-  resolvedComplaints.forEach(c => {
-    if (c.lastUpdated && c.createdAt) {
-      const created = new Date(c.createdAt);
-      const resolved = new Date(c.lastUpdated);
-      const days = Math.max(0, Math.floor((resolved.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)));
-      totalResolutionDays += days;
+    if (response.data.status) {
+      metrics.value = response.data.data.metrics || [];
+      statusDistribution.value = response.data.data.status_distribution || [];
+      categoryDistribution.value = response.data.data.category_distribution || [];
     }
-  });
-  const avgResolutionDays = resolvedComplaints.length > 0 
-    ? parseFloat((totalResolutionDays / resolvedComplaints.length).toFixed(1))
-    : 0;
+  } catch (error: any) {
+    console.error('Error fetching analytics:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load analytics data',
+      life: 3000,
+    });
+  } finally {
+    loading.value = false;
+  }
+};
 
-  return [
-    { key: 'total', label: 'Total Complaints', value: total, delta: totalDelta, suffix: '', icon: 'fa-ticket' },
-    { key: 'open', label: 'Open Tickets', value: open, delta: openDelta, suffix: '', icon: 'fa-exclamation-circle' },
-    { key: 'resolved', label: 'Resolved', value: resolved, delta: resolvedDelta, suffix: '', icon: 'fa-check-circle' },
-    { key: 'resolution', label: 'Avg Resolution', value: avgResolutionDays, delta: -2.1, suffix: ' days', icon: 'fa-clock' },
-  ];
+// Watch for date range changes
+watch(dateRange, () => {
+  fetchAnalytics();
 });
 
-const displayMetrics = computed(() => metrics.value.map(m => ({
-  ...m,
-  display: m.suffix ? `${m.value}${m.suffix}` : m.value.toLocaleString(),
-  up: m.delta >= 0
-})));
-
-// Status Distribution
-const statusDistribution = computed(() => {
-  const complaints = filteredComplaints.value;
-  return [
-    { status: 'Open', count: complaints.filter(c => c.status === 'Open').length, color: 'text-rose-600' },
-    { status: 'In Progress', count: complaints.filter(c => c.status === 'In Progress').length, color: 'text-amber-600' },
-    { status: 'Resolved', count: complaints.filter(c => c.status === 'Resolved').length, color: 'text-emerald-600' },
-  ].filter(s => s.count > 0);
+// Watch for modal visibility
+watch(() => props.visible, (newVal) => {
+  if (newVal) {
+    fetchAnalytics();
+  }
 });
 
-// Category Distribution
-const categoryDistribution = computed(() => {
-  const complaints = filteredComplaints.value;
-  const categoryMap = new Map<string, number>();
+// Fetch on mount if visible
+onMounted(() => {
+  if (props.visible) {
+    fetchAnalytics();
+  }
+});
+
+const displayMetrics = computed(() => metrics.value.map(m => {
+  // Determine if the change is positive (up) or negative (down)
+  // For most metrics: higher is better (total, resolved) - up arrow for positive delta
+  // For open tickets: lower is better - up arrow for negative delta
+  // For resolution time: lower is better - up arrow for negative delta
   
-  complaints.forEach(c => {
-    const cat = c.category || 'Other';
-    categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
-  });
-
-  const total = complaints.length;
-  return Array.from(categoryMap.entries())
-    .map(([category, count]) => ({
-      category,
-      count,
-      percentage: total > 0 ? parseFloat(((count / total) * 100).toFixed(0)) : 0,
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 4);
-});
+  let isUp = false;
+  const delta = m.delta || 0;
+  
+  if (m.key === 'resolution') {
+    // Lower resolution time is better, so negative delta is good (up arrow)
+    isUp = delta <= 0;
+  } else if (m.key === 'open') {
+    // Lower open tickets is better, so negative delta is good (up arrow)
+    isUp = delta <= 0;
+  } else {
+    // For total and resolved: higher is better, so positive delta is good (up arrow)
+    isUp = delta >= 0;
+  }
+  
+  return {
+    ...m,
+    display: m.suffix ? `${m.value}${m.suffix}` : m.value.toLocaleString(),
+    up: isUp,
+    delta: delta // Keep the original delta value
+  };
+}));
 </script>
 
 <template>
@@ -196,13 +118,25 @@ const categoryDistribution = computed(() => {
         <div class="text-sm text-gray-500">Complaints Overview</div>
         <div class="flex items-center gap-2">
           <div class="relative">
-            <select v-model="dateRange" class="appearance-none rounded-md border border-gray-200 bg-white px-3 py-2 text-sm pr-8 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+            <select 
+              v-model="dateRange" 
+              :disabled="loading"
+              class="appearance-none rounded-md border border-gray-200 bg-white px-3 py-2 text-sm pr-8 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <option v-for="r in dateRanges" :key="r" :value="r">{{ r }}</option>
             </select>
             <i class="fa-light fa-calendar absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
           </div>
         </div>
       </section>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="flex items-center justify-center py-12">
+        <div class="text-gray-500">Loading analytics...</div>
+      </div>
+
+      <!-- Analytics Content -->
+      <template v-else>
 
       <!-- KPI Cards -->
       <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -215,9 +149,12 @@ const categoryDistribution = computed(() => {
           </div>
           <div class="mt-3 flex items-end justify-between">
             <div class="text-2xl font-semibold text-gray-900">{{ m.display }}</div>
-            <div :class="m.up ? 'text-emerald-600' : 'text-rose-600'" class="text-sm font-medium">
+            <div v-if="m.delta !== 0" :class="m.up ? 'text-emerald-600' : 'text-rose-600'" class="text-sm font-medium">
               <i :class="m.up ? 'fa-solid fa-arrow-trend-up' : 'fa-solid fa-arrow-trend-down'"></i>
               {{ Math.abs(m.delta).toFixed(1) }}%
+            </div>
+            <div v-else class="text-sm font-medium text-gray-500">
+              No change
             </div>
           </div>
           <div class="mt-1 text-xs text-gray-500">vs previous period</div>
@@ -269,6 +206,7 @@ const categoryDistribution = computed(() => {
           </ul>
         </div>
       </section>
+      </template>
     </div>
   </Dialog>
 </template>

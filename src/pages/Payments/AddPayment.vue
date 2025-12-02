@@ -34,6 +34,16 @@ interface Subscription {
   }
 }
 
+interface AccountOption {
+  id: number
+  account_number: string | null
+  employee_id: number
+  employee_name: string
+  employee_email: string
+  employee_designation: string
+  current_balance: number
+}
+
 // Toast + state
 const toast = useToast()
 const loading = ref(false)
@@ -47,10 +57,12 @@ const errors = ref<Record<string, string[]>>({})
 const getInitialFormState = () => ({
   customer_id: null as CustomerOption | null,
   subscription_id: null as number | null,
+  account_id: null as number | null,
+  employee_id: null as number | null,
   amount: null as number | null,
   currency: tenantCurrency.value,
   status: 'pending' as 'paid' | 'pending' | 'failed' | 'refunded',
-  payment_date: null as string | null,
+  payment_date: null as Date | null,
   payment_method: '',
   reference: '',
   notes: ''
@@ -65,6 +77,8 @@ const customers = ref<CustomerOption[]>([])
 const filteredCustomers = ref<CustomerOption[]>([])
 const subscriptions = ref<Subscription[]>([])
 const loadingSubscriptions = ref(false)
+const accounts = ref<AccountOption[]>([])
+const loadingAccounts = ref(false)
 const dataLoading = ref(true)
 
 // Payment method options
@@ -94,6 +108,24 @@ const currencyOptions = [
   { label: 'INR - Indian Rupee', value: 'INR' }
 ]
 
+// Fetch active accounts for collection
+const fetchActiveAccounts = async () => {
+  loadingAccounts.value = true
+  try {
+    const res = await axiosClient.get('/accounts/active')
+    if (res.data?.status && Array.isArray(res.data?.data)) {
+      accounts.value = res.data.data
+    } else {
+      accounts.value = []
+    }
+  } catch (error) {
+    console.error('Error loading accounts:', error)
+    accounts.value = []
+  } finally {
+    loadingAccounts.value = false
+  }
+}
+
 // Fetch customers from API
 onMounted(async () => {
   // Load general settings to get currency
@@ -102,29 +134,35 @@ onMounted(async () => {
   // Update form currency to match tenant settings
   form.value.currency = tenantCurrency.value
   
-  try {
-    const customersRes = await axiosClient.get('/customers')
+  // Fetch accounts and customers in parallel
+  await Promise.all([
+    fetchActiveAccounts(),
+    (async () => {
+      try {
+        const customersRes = await axiosClient.get('/customers')
 
-    customers.value =
-      customersRes.data.customers?.map((c: any) => ({
-        id: c.customer.id,
-        name: c.name || `Customer #${c.customer.id}`,
-        email: c.email,
-        area: c.area || ''
-      })) || []
+        customers.value =
+          customersRes.data.customers?.map((c: any) => ({
+            id: c.customer.id,
+            name: c.name || `Customer #${c.customer.id}`,
+            email: c.email,
+            area: c.area || ''
+          })) || []
 
-    filteredCustomers.value = [...customers.value]
-  } catch (error) {
-    console.error('Error loading customers:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load customer data.',
-      life: 4000
-    })
-  } finally {
-    dataLoading.value = false
-  }
+        filteredCustomers.value = [...customers.value]
+      } catch (error) {
+        console.error('Error loading customers:', error)
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load customer data.',
+          life: 4000
+        })
+      } finally {
+        dataLoading.value = false
+      }
+    })()
+  ])
 })
 
 // Autocomplete search for customers
@@ -187,6 +225,18 @@ watch(() => form.value.subscription_id, (newId) => {
   }
 })
 
+// Watch for account selection to auto-set employee_id
+watch(() => form.value.account_id, (newAccountId) => {
+  if (newAccountId) {
+    const account = accounts.value.find(a => a.id === newAccountId)
+    if (account) {
+      form.value.employee_id = account.employee_id
+    }
+  } else {
+    form.value.employee_id = null
+  }
+})
+
 // Submit function
 const submitForm = async () => {
   loading.value = true
@@ -198,13 +248,24 @@ const submitForm = async () => {
     // Convert amount to cents for API (InputNumber in currency mode gives us dollars)
     const amountInCents = Math.round((form.value.amount || 0) * 100)
     
+    // Format date to YYYY-MM-DD string
+    const formatDate = (date: Date | null): string | null => {
+      if (!date) return null
+      const yyyy = date.getFullYear()
+      const mm = String(date.getMonth() + 1).padStart(2, '0')
+      const dd = String(date.getDate()).padStart(2, '0')
+      return `${yyyy}-${mm}-${dd}`
+    }
+
     const payload = {
       customer_id: form.value.customer_id!.id,
       subscription_id: form.value.subscription_id || null,
+      account_id: form.value.account_id || null,
+      employee_id: form.value.employee_id || null,
       amount: amountInCents,
       currency: form.value.currency,
       status: form.value.status,
-      payment_date: form.value.payment_date,
+      pay_date: formatDate(form.value.payment_date),
       payment_method: form.value.payment_method || null,
       reference: form.value.reference || null,
       notes: form.value.notes || null
@@ -282,6 +343,8 @@ watch(
       errors.value = {}
       filteredCustomers.value = [...customers.value]
       subscriptions.value = []
+      // Reload accounts to get latest active accounts
+      fetchActiveAccounts()
       
       nextTick(() => {
         const root = dialogFormRef.value
@@ -358,6 +421,40 @@ watch(
           <p v-else-if="loadingSubscriptions" class="mt-1 text-xs text-gray-500">Loading subscriptions...</p>
           <p v-else-if="form.customer_id && subscriptions.length === 0" class="mt-1 text-xs text-gray-500">No subscriptions found for this customer</p>
         </div>
+      </div>
+
+      <!-- Collector Account Section -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">
+          Collector Account <span class="text-gray-400">(optional)</span>
+        </label>
+        <Select
+          size="small"
+          fluid
+          v-model="form.account_id"
+          :options="accounts"
+          optionLabel="employee_name"
+          optionValue="id"
+          placeholder="Select collector account"
+          class="w-full"
+          :loading="loadingAccounts"
+          :disabled="loadingAccounts"
+          :class="{ 'border-rose-500': errors.account_id }"
+        >
+          <template #option="slotProps">
+            <div>
+              <div class="font-medium">{{ slotProps.option.employee_name }}</div>
+              <div class="text-xs text-gray-500">
+                {{ slotProps.option.employee_designation }}
+                <span v-if="slotProps.option.account_number"> • Account #{{ slotProps.option.account_number }}</span>
+              </div>
+            </div>
+          </template>
+        </Select>
+        <p v-if="errors.account_id" class="text-xs text-red-600 mt-1" aria-live="polite">{{ errors.account_id[0] }}</p>
+        <p v-else-if="loadingAccounts" class="mt-1 text-xs text-gray-500">Loading accounts...</p>
+        <p v-else-if="!loadingAccounts && accounts.length === 0" class="mt-1 text-xs text-gray-500">No active collector accounts available</p>
+        <p v-else class="mt-1 text-xs text-gray-500">Select the account through which this payment is collected</p>
       </div>
 
       <!-- Amount and Currency -->

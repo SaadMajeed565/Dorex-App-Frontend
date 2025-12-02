@@ -9,6 +9,7 @@ import ImportDialog from '../../components/ImportDialog.vue';
 import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
 import { useToast } from 'primevue/usetoast';
 import ShowInvoice from '../Invoices/Show.vue';
+import { formatCurrencyCents, formatCurrencyCentsFull } from '../../utils/formatCurrency';
 
 const router = useRouter();
 const toast = useToast();
@@ -27,10 +28,33 @@ interface Payment {
   customer: string;
   customer_id?: number;
   subscription_id?: number;
+  account_id?: number;
+  account?: {
+    id: number;
+    account_number?: string;
+    employee?: {
+      name?: string;
+      email?: string;
+      designation?: string;
+    };
+  };
+  employee_id?: number;
   amountCents: number;
   currency: string;
   status: PaymentStatus;
   createdAt: string; // ISO string
+  invoice?: {
+    id: number;
+    invoice_number: string;
+    formatted_number?: string;
+    status: string;
+    status_label?: string;
+    total: number;
+    currency: string;
+    issue_date?: string;
+    due_date?: string;
+  };
+  invoice_id?: number;
 }
 
 const payments = ref<Payment[]>([]);
@@ -40,19 +64,6 @@ const searchQuery = ref<string>('');
 const statusFilter = ref<PaymentStatus | 'all'>('all');
 const page = ref(1);
 const pageSize = ref(10);
-
-const formatCurrencyCents = (amountCents: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-      currencyDisplay: 'narrowSymbol',
-      minimumFractionDigits: 2,
-    }).format(amountCents / 100);
-  } catch {
-    return `${(amountCents / 100).toFixed(2)} ${currency}`;
-  }
-};
 
 const formatDate = (iso: string) => {
   try {
@@ -167,6 +178,10 @@ const openCustomerModal = (customerId: number) => {
   router.push({ name: 'Customers.Index', query: { show: customerId } });
 };
 
+const viewInvoice = (invoiceId: number) => {
+  router.push({ name: 'Invoices.Index', query: { show: invoiceId } });
+};
+
 const openSubscriptionModal = (subscriptionId: number) => {
   router.push({ name: 'Subscriptions.Index', query: { show: subscriptionId } });
 };
@@ -209,10 +224,33 @@ const fetchPayments = async () => {
         customer: String(customerName),
         customer_id: item?.customer_id ?? item?.customer?.id,
         subscription_id: item?.subscription_id ?? item?.subscription?.id,
+        account_id: item?.account_id ?? item?.account?.id,
+        account: item?.account ? {
+          id: item.account.id,
+          account_number: item.account.account_number,
+          employee: item.account.employee ? {
+            name: item.account.employee.name,
+            email: item.account.employee.email,
+            designation: item.account.employee.designation,
+          } : undefined,
+        } : undefined,
+        employee_id: item?.employee_id ?? item?.employee?.id,
         amountCents: typeof amount === 'number' ? Math.round(amount) : Number(amount) * (Number(amount) < 1000 ? 100 : 1),
         currency: String(currency).toUpperCase(),
         status: normalizeStatus(item?.status),
         createdAt: String(created),
+        invoice: item?.invoice ? {
+          id: item.invoice.id,
+          invoice_number: item.invoice.invoice_number,
+          formatted_number: item.invoice.formatted_number,
+          status: item.invoice.status,
+          status_label: item.invoice.status_label,
+          total: item.invoice.total,
+          currency: item.invoice.currency,
+          issue_date: item.invoice.issue_date,
+          due_date: item.invoice.due_date,
+        } : undefined,
+        invoice_id: item?.invoice_id ?? item?.invoice?.id,
       } as Payment;
     });
   } catch (err) {
@@ -271,10 +309,35 @@ const handlePaymentCreated = (newPayment: any) => {
         return {
           id,
           customer: String(customerName),
+          customer_id: item?.customer_id ?? item?.customer?.id,
+          subscription_id: item?.subscription_id ?? item?.subscription?.id,
+          account_id: item?.account_id ?? item?.account?.id,
+          account: item?.account ? {
+            id: item.account.id,
+            account_number: item.account.account_number,
+            employee: item.account.employee ? {
+              name: item.account.employee.name,
+              email: item.account.employee.email,
+              designation: item.account.employee.designation,
+            } : undefined,
+          } : undefined,
+          employee_id: item?.employee_id ?? item?.employee?.id,
           amountCents: typeof amount === 'number' ? Math.round(amount) : Number(amount) * (Number(amount) < 1000 ? 100 : 1),
           currency: String(currency).toUpperCase(),
           status: normalizeStatus(item?.status),
           createdAt: String(created),
+          invoice: item?.invoice ? {
+            id: item.invoice.id,
+            invoice_number: item.invoice.invoice_number,
+            formatted_number: item.invoice.formatted_number,
+            status: item.invoice.status,
+            status_label: item.invoice.status_label,
+            total: item.invoice.total,
+            currency: item.invoice.currency,
+            issue_date: item.invoice.issue_date,
+            due_date: item.invoice.due_date,
+          } : undefined,
+          invoice_id: item?.invoice_id ?? item?.invoice?.id,
         } as Payment;
       });
     } catch (err) {
@@ -360,7 +423,12 @@ onMounted(async () => {
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm font-medium text-gray-500">Total Volume</p>
-            <p class="text-2xl font-bold text-gray-900">{{ formatCurrencyCents(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency) }}</p>
+            <p 
+              class="text-2xl font-bold text-gray-900 cursor-help" 
+              :title="formatCurrencyCentsFull(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency)"
+            >
+              {{ formatCurrencyCents(totalAmountCents, payments.length > 0 ? payments[0].currency : tenantCurrency) }}
+            </p>
             <p v-if="payments.length > 0 && payments.some(p => p.currency !== (payments[0]?.currency || tenantCurrency))" class="text-xs text-gray-400 mt-1">Multiple currencies</p>
           </div>
           <div class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
@@ -414,9 +482,11 @@ onMounted(async () => {
               <tr>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Payment ID</th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Customer</th>
+                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Collector</th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Amount</th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Date</th>
+                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Invoice</th>
                 <th class="px-4 py-3"></th>
               </tr>
             </thead>
@@ -434,7 +504,28 @@ onMounted(async () => {
                     </button>
                   </div>
                 </td>
-                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ formatCurrencyCents(payment.amountCents, payment.currency) }}</td>
+                <td class="px-4 py-3">
+                  <div v-if="payment.account?.employee?.name" class="text-sm text-gray-900">
+                    {{ payment.account.employee.name }}
+                  </div>
+                  <div v-else-if="payment.employee_id" class="text-sm text-gray-500 italic">
+                    Employee #{{ payment.employee_id }}
+                  </div>
+                  <div v-else class="text-sm text-gray-400 italic">
+                    —
+                  </div>
+                  <div v-if="payment.account?.account_number" class="text-xs text-gray-500 mt-0.5">
+                    Account #{{ payment.account.account_number }}
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                  <span 
+                    class="cursor-help" 
+                    :title="formatCurrencyCentsFull(payment.amountCents, payment.currency)"
+                  >
+                    {{ formatCurrencyCents(payment.amountCents, payment.currency) }}
+                  </span>
+                </td>
                 <td class="px-4 py-3">
                   <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium" :class="statusClasses(payment.status)">
                     <span
@@ -450,8 +541,31 @@ onMounted(async () => {
                   </span>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-900">{{ formatDate(payment.createdAt) }}</td>
-                <td class="px-4 py-3 text-right text-sm">
-                  <div class="flex items-center justify-end gap-2">
+                <td class="px-4 py-3">
+                  <div v-if="payment.invoice" class="flex flex-col gap-1">
+                    <div class="flex items-center gap-2">
+                      <i class="fa-light fa-file-invoice text-indigo-600"></i>
+                      <button 
+                        @click.stop="viewInvoice(payment.invoice!.id)"
+                        class="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        {{ payment.invoice.invoice_number || payment.invoice.formatted_number || `#${payment.invoice.id}` }}
+                      </button>
+                    </div>
+                    <span 
+                      :class="[
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                        payment.invoice.status === 'paid' ? 'bg-green-50 text-green-700' :
+                        payment.invoice.status === 'sent' ? 'bg-blue-50 text-blue-700' :
+                        payment.invoice.status === 'overdue' ? 'bg-red-50 text-red-700' :
+                        payment.invoice.status === 'draft' ? 'bg-gray-50 text-gray-700' :
+                        'bg-yellow-50 text-yellow-700'
+                      ]"
+                    >
+                      {{ payment.invoice.status_label || payment.invoice.status }}
+                    </span>
+                  </div>
+                  <div v-else class="flex items-center justify-end gap-2">
                     <button 
                       @click="generateInvoice(payment.id)"
                       :disabled="generatingInvoice === payment.id"
@@ -460,8 +574,12 @@ onMounted(async () => {
                     >
                       <i class="fa-light fa-file-invoice text-sm"></i>
                       <span v-if="generatingInvoice === payment.id">...</span>
-                      <span v-else>Invoice</span>
+                      <span v-else>Generate</span>
                     </button>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-right text-sm">
+                  <div class="flex items-center justify-end gap-2">
                     <span v-if="payment.subscription_id" class="text-gray-300">|</span>
                     <button 
                       v-if="payment.subscription_id"

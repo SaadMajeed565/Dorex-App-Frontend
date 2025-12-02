@@ -73,8 +73,8 @@ const fetchEmployees = async () => {
     else raw = [];
 
     employees.value = raw.map((emp: any) => ({
-      id: emp?.id ?? emp?.employee?.id,
-      name: emp?.name ?? emp?.employee?.name ?? 'Unknown',
+      id: emp?.employee?.id ?? emp?.id,
+      name: emp?.name ?? 'Unknown',
       email: emp?.email ?? '',
     }));
     filteredEmployees.value = [...employees.value];
@@ -114,7 +114,18 @@ watch(
 
       // Set selected employee if assigned
       await fetchEmployees();
-      if (complaint.assignedTo && complaint.assignedTo !== 'Unassigned') {
+      
+      // Try to get employee ID from various possible structures
+      const employeeId = complaint?.assigned_employee?.id ?? complaint?.assigned_employee?.employee?.id ?? complaint?.assigned_to;
+      
+      if (employeeId) {
+        const emp = employees.value.find(e => e.id === employeeId);
+        if (emp) {
+          selectedEmployee.value = emp;
+          form.value.assigned_to = emp.id;
+        }
+      } else if (complaint.assignedTo && complaint.assignedTo !== 'Unassigned') {
+        // Fallback: try to find by name if ID not available
         const emp = employees.value.find(e => e.name === complaint.assignedTo);
         if (emp) {
           selectedEmployee.value = emp;
@@ -140,7 +151,17 @@ watch(
 
 const handleEmployeeSelect = (event: any) => {
   selectedEmployee.value = event.value;
-  form.value.assigned_to = event.value?.id || null;
+  if (event.value?.id) {
+    form.value.assigned_to = Number(event.value.id);
+  } else {
+    form.value.assigned_to = null;
+  }
+};
+
+// Handle when employee is cleared
+const handleEmployeeClear = () => {
+  selectedEmployee.value = null;
+  form.value.assigned_to = null;
 };
 
 const submit = async () => {
@@ -156,9 +177,13 @@ const submit = async () => {
       category: form.value.category,
     };
 
-    if (form.value.assigned_to) {
-      payload.assigned_to = form.value.assigned_to;
+    // Only include assigned_to if it has a valid numeric value
+    const assignedToId = form.value.assigned_to ? Number(form.value.assigned_to) : null;
+    if (assignedToId && !isNaN(assignedToId) && assignedToId > 0) {
+      payload.assigned_to = assignedToId;
     }
+    // If null or invalid, don't include it (will keep existing value) or set to null to unassign
+    // Note: To unassign, you might want to explicitly send null
 
     if (form.value.resolution) {
       payload.resolution = form.value.resolution;
@@ -233,12 +258,14 @@ const submit = async () => {
             :suggestions="filteredEmployees"
             @complete="searchEmployees"
             @item-select="handleEmployeeSelect"
+            @clear="handleEmployeeClear"
             option-label="name"
             placeholder="Search employee..."
             :loading="employeesLoading"
             fluid
             size="small"
             dropdown
+            clearable
           >
             <template #item="{ option }">
               <div class="flex flex-col">

@@ -12,6 +12,7 @@ import InputText from '../../volt/InputText.vue';
 import Textarea from '../../volt/Textarea.vue';
 import Button from '../../volt/Button.vue';
 import Select from '../../volt/Select.vue';
+import { formatCurrency, formatCurrencyFull } from '../../utils/formatCurrency';
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -57,16 +58,8 @@ const editAccountForm = ref<{
   notes: '',
 });
 
-const formatCurrency = (amount: number) => {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currency.value,
-      minimumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency.value}`;
-  }
+const formatCurrencyAmount = (amount: number) => {
+  return formatCurrency(amount, currency.value, true);
 };
 
 const fetchAccounts = async () => {
@@ -303,10 +296,7 @@ const handleSuspendAccount = (event?: Event) => {
     event.stopPropagation();
   }
   
-  console.log('handleSuspendAccount called', { selectedAccountId: selectedAccountId.value, accountDetails: accountDetails.value });
-  
   if (!selectedAccountId.value || !accountDetails.value) {
-    console.error('Cannot suspend: missing account ID or details');
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -316,12 +306,19 @@ const handleSuspendAccount = (event?: Event) => {
     return;
   }
   
-  console.log('Showing confirm dialog for suspend');
   confirm.require({
     message: 'Are you sure you want to suspend this account? The account will be temporarily disabled and cannot receive new payments.',
     header: 'Confirm Suspend Account',
     icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-warning',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Suspend',
+      severity: 'warning'
+    },
     accept: async () => {
       try {
         const res = await axiosClient.post(`/accounts/${selectedAccountId.value}/suspend`);
@@ -355,10 +352,7 @@ const handleCloseAccount = (event?: Event) => {
     event.stopPropagation();
   }
   
-  console.log('handleCloseAccount called', { selectedAccountId: selectedAccountId.value, accountDetails: accountDetails.value });
-  
   if (!selectedAccountId.value || !accountDetails.value) {
-    console.error('Cannot close: missing account ID or details');
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -368,12 +362,19 @@ const handleCloseAccount = (event?: Event) => {
     return;
   }
   
-  console.log('Showing confirm dialog for close');
   confirm.require({
     message: 'Are you sure you want to close this account? This action is permanent and the account cannot receive new payments.',
     header: 'Confirm Close Account',
     icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Close',
+      severity: 'danger'
+    },
     accept: async () => {
       try {
         const res = await axiosClient.post(`/accounts/${selectedAccountId.value}/close`);
@@ -508,11 +509,21 @@ onMounted(async () => {
             </div>
             <div class="flex items-center justify-between">
               <span class="text-sm text-gray-500">Current Balance</span>
-              <span class="text-sm font-semibold text-gray-900">{{ formatCurrency(account.current_balance || 0) }}</span>
+              <span 
+                class="text-sm font-semibold text-gray-900 cursor-help" 
+                :title="formatCurrencyFull(account.current_balance || 0, currency)"
+              >
+                {{ formatCurrencyAmount(account.current_balance || 0) }}
+              </span>
             </div>
             <div class="flex items-center justify-between pt-2 border-t border-gray-100">
               <span class="text-sm text-gray-500">Total Collections</span>
-              <span class="text-sm font-semibold text-indigo-600">{{ formatCurrency(account.total_collections || 0) }}</span>
+              <span 
+                class="text-sm font-semibold text-indigo-600 cursor-help" 
+                :title="formatCurrencyFull(account.total_collections || 0, currency)"
+              >
+                {{ formatCurrencyAmount(account.total_collections || 0) }}
+              </span>
             </div>
             <div class="flex items-center justify-between">
               <span class="text-sm text-gray-500">Total Count</span>
@@ -614,7 +625,7 @@ onMounted(async () => {
             <button
               v-if="accountDetails.status === 'active'"
               type="button"
-              @click="handleSuspendAccount"
+              @click.stop="handleSuspendAccount"
               class="inline-flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-colors hover:bg-yellow-100">
               <i class="fa-light fa-pause text-sm"></i>
               Suspend
@@ -622,7 +633,7 @@ onMounted(async () => {
             <button
               v-if="accountDetails.status !== 'closed'"
               type="button"
-              @click="handleCloseAccount"
+              @click.stop="handleCloseAccount"
               class="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100">
               <i class="fa-light fa-lock text-sm"></i>
               Close
@@ -632,20 +643,40 @@ onMounted(async () => {
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="rounded-lg border border-gray-200 bg-white p-4">
               <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Collections</p>
-              <p class="text-xl font-bold text-gray-900">{{ formatCurrency(accountDetails.total_collections || 0) }}</p>
+              <p 
+                class="text-xl font-bold text-gray-900 cursor-help" 
+                :title="formatCurrencyFull(accountDetails.total_collections || 0, currency)"
+              >
+                {{ formatCurrencyAmount(accountDetails.total_collections || 0) }}
+              </p>
               <p class="text-xs text-gray-400 mt-1">{{ accountDetails.total_collections_count || 0 }} payments</p>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-4">
               <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Today</p>
-              <p class="text-xl font-bold text-indigo-600">{{ formatCurrency(accountDetails.today_collections || 0) }}</p>
+              <p 
+                class="text-xl font-bold text-indigo-600 cursor-help" 
+                :title="formatCurrencyFull(accountDetails.today_collections || 0, currency)"
+              >
+                {{ formatCurrencyAmount(accountDetails.today_collections || 0) }}
+              </p>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-4">
               <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">This Month</p>
-              <p class="text-xl font-bold text-indigo-600">{{ formatCurrency(accountDetails.current_month_collections || 0) }}</p>
+              <p 
+                class="text-xl font-bold text-indigo-600 cursor-help" 
+                :title="formatCurrencyFull(accountDetails.current_month_collections || 0, currency)"
+              >
+                {{ formatCurrencyAmount(accountDetails.current_month_collections || 0) }}
+              </p>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-4">
               <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Last 30 Days</p>
-              <p class="text-xl font-bold text-indigo-600">{{ formatCurrency(accountDetails.last_30_days_collections || 0) }}</p>
+              <p 
+                class="text-xl font-bold text-indigo-600 cursor-help" 
+                :title="formatCurrencyFull(accountDetails.last_30_days_collections || 0, currency)"
+              >
+                {{ formatCurrencyAmount(accountDetails.last_30_days_collections || 0) }}
+              </p>
             </div>
           </div>
 
@@ -673,11 +704,21 @@ onMounted(async () => {
               </div>
               <div>
                 <span class="text-gray-500">Opening Balance:</span>
-                <span class="ml-2 font-medium text-gray-900">{{ formatCurrency(accountDetails.opening_balance || 0) }}</span>
+                <span 
+                  class="ml-2 font-medium text-gray-900 cursor-help" 
+                  :title="formatCurrencyFull(accountDetails.opening_balance || 0, currency)"
+                >
+                  {{ formatCurrencyAmount(accountDetails.opening_balance || 0) }}
+                </span>
               </div>
               <div>
                 <span class="text-gray-500">Current Balance:</span>
-                <span class="ml-2 font-medium text-indigo-600">{{ formatCurrency(accountDetails.current_balance || 0) }}</span>
+                <span 
+                  class="ml-2 font-medium text-indigo-600 cursor-help" 
+                  :title="formatCurrencyFull(accountDetails.current_balance || 0, currency)"
+                >
+                  {{ formatCurrencyAmount(accountDetails.current_balance || 0) }}
+                </span>
               </div>
             </div>
           </div>
@@ -709,7 +750,12 @@ onMounted(async () => {
                       {{ collection.customer?.user?.name || collection.customer?.name || 'N/A' }}
                     </td>
                     <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                      {{ formatCurrency(collection.amount || 0) }}
+                      <span 
+                        class="cursor-help" 
+                        :title="formatCurrencyFull(collection.amount || 0, currency)"
+                      >
+                        {{ formatCurrencyAmount(collection.amount || 0) }}
+                      </span>
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-500">
                       {{ collection.slip_no || collection.slipNo || 'N/A' }}

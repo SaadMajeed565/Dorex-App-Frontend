@@ -32,7 +32,7 @@ const form = ref({
   customer_id: null as any,
   subscription_id: null as any,
   assigned_to: null as any,
-  due_date: null as string | null,
+  due_date: null as Date | null,
   notes: '',
 });
 
@@ -68,12 +68,24 @@ const filteredEmployees = ref<any[]>([]);
 const filteredSubscriptions = ref<any[]>([]);
 const selectedCustomer = ref<any>(null);
 const selectedEmployee = ref<any>(null);
+const selectedSubscription = ref<any>(null);
+const subscriptionsLoading = ref(false);
 
 const isEditing = computed(() => !!props.task);
 
 // Load task data
-const loadTaskData = () => {
+const loadTaskData = async () => {
   if (!props.task) return;
+  
+  // Convert due_date string to Date object if it exists
+  let dueDate: Date | null = null;
+  if (props.task.due_date) {
+    const parsedDate = new Date(props.task.due_date);
+    // Check if date is valid
+    if (!isNaN(parsedDate.getTime())) {
+      dueDate = parsedDate;
+    }
+  }
   
   form.value = {
     title: props.task.title || '',
@@ -84,7 +96,7 @@ const loadTaskData = () => {
     customer_id: props.task.customer?.id || null,
     subscription_id: props.task.subscription?.id || null,
     assigned_to: props.task.assigned_employee?.id || null,
-    due_date: props.task.due_date || null,
+    due_date: dueDate,
     notes: props.task.notes || '',
   };
 
@@ -93,12 +105,46 @@ const loadTaskData = () => {
       id: props.task.customer.id,
       name: props.task.customer.name,
     };
-  }
-  if (props.task.assigned_employee) {
-    selectedEmployee.value = {
-      id: props.task.assigned_employee.id,
-      name: props.task.assigned_employee.name,
+    // Load subscriptions for the customer, then set selected subscription
+    if (props.task.customer.id) {
+      await fetchSubscriptions(props.task.customer.id);
+      // Set selected subscription after subscriptions are loaded
+      if (props.task.subscription?.id) {
+        const sub = subscriptions.value.find(s => s.id === props.task.subscription.id);
+        if (sub) {
+          selectedSubscription.value = sub;
+        } else {
+          // Fallback if subscription not found in list
+          selectedSubscription.value = {
+            id: props.task.subscription.id,
+            name: props.task.subscription.package?.name || 'Subscription',
+          };
+        }
+      }
+    }
+  } else if (props.task.subscription?.id) {
+    // If no customer but has subscription, just set the subscription data
+    selectedSubscription.value = {
+      id: props.task.subscription.id,
+      name: props.task.subscription.package?.name || 'Subscription',
     };
+  }
+  
+  // Set selected employee after employees are loaded
+  if (props.task.assigned_employee?.id) {
+    // Find the employee in the list to ensure we have the correct ID structure
+    const emp = employees.value.find(e => e.id === props.task.assigned_employee.id);
+    if (emp) {
+      selectedEmployee.value = emp;
+      form.value.assigned_to = emp.id;
+    } else {
+      // Fallback if employee not found in list yet
+      selectedEmployee.value = {
+        id: props.task.assigned_employee.id,
+        name: props.task.assigned_employee.name,
+      };
+      form.value.assigned_to = props.task.assigned_employee.id;
+    }
   }
 };
 
@@ -129,7 +175,7 @@ const fetchEmployees = async () => {
     else if (Array.isArray(res?.data?.data)) raw = res.data.data;
     else if (Array.isArray(res?.data?.employees)) raw = res.data.employees;
     employees.value = raw.map((emp: any) => ({
-      id: emp?.id ?? emp?.employee?.id,
+      id: emp?.employee?.id ?? emp?.id, // Prioritize nested ID structure
       name: emp?.name ?? emp?.employee?.name ?? 'Unknown',
     }));
     filteredEmployees.value = [...employees.value];
@@ -139,42 +185,149 @@ const fetchEmployees = async () => {
 };
 
 const fetchSubscriptions = async (customerId: number) => {
-  if (!customerId) return;
+  if (!customerId) {
+    subscriptions.value = [];
+    filteredSubscriptions.value = [];
+    return;
+  }
+  subscriptionsLoading.value = true;
   try {
     const res = await axiosClient.get(`/customers/${customerId}/subscriptions`);
     let raw: any = [];
     if (Array.isArray(res?.data)) raw = res.data;
     else if (Array.isArray(res?.data?.data)) raw = res.data.data;
+    else if (Array.isArray(res?.data?.data?.data)) raw = res.data.data.data;
     subscriptions.value = raw.map((sub: any) => ({
       id: sub.id,
       name: `${sub.package?.name || 'Package'} - ${sub.status}`,
+      status: sub.status,
     }));
     filteredSubscriptions.value = [...subscriptions.value];
   } catch (err) {
     console.error('Error fetching subscriptions:', err);
+  } finally {
+    subscriptionsLoading.value = false;
   }
 };
 
+// Watch for task prop changes to reload data
+watch(
+  () => props.task,
+  async (newTask) => {
+    if (props.visible && newTask) {
+      await loadTaskData();
+    }
+  },
+  { immediate: false }
+);
+
+// Watch for visible prop to handle modal open/close
 watch(
   () => props.visible,
-  (visible) => {
+  async (visible) => {
     if (visible) {
-      fetchCustomers();
-      fetchEmployees();
-      loadTaskData();
-      if (form.value.customer_id) {
-        fetchSubscriptions(form.value.customer_id);
-      }
+      await Promise.all([fetchCustomers(), fetchEmployees()]);
+      await loadTaskData();
+    } else {
+      // Reset form when closing
+      form.value = {
+        title: '',
+        description: '',
+        priority: 'medium',
+        type: 'other',
+        status: 'pending',
+        customer_id: null,
+        subscription_id: null,
+        assigned_to: null,
+        due_date: null,
+        notes: '',
+      };
+      selectedCustomer.value = null;
+      selectedEmployee.value = null;
+      selectedSubscription.value = null;
+      subscriptions.value = [];
+      filteredSubscriptions.value = [];
     }
   }
 );
 
+// Watch due_date to ensure it's always a Date or null
+watch(
+  () => form.value.due_date,
+  (newValue) => {
+    // If it's a string, convert to Date
+    if (typeof newValue === 'string' && newValue.trim()) {
+      const parsedDate = new Date(newValue);
+      if (!isNaN(parsedDate.getTime())) {
+        // Only update if different to avoid infinite loops
+        if (form.value.due_date !== parsedDate) {
+          form.value.due_date = parsedDate;
+        }
+      } else {
+        form.value.due_date = null;
+      }
+    } else if (newValue !== null && !(newValue instanceof Date)) {
+      // If it's not a Date object and not null, set to null
+      form.value.due_date = null;
+    }
+  }
+);
+
+// Search functions
+const searchCustomers = (event: any) => {
+  const query = event.query?.toLowerCase() || '';
+  if (!query) {
+    filteredCustomers.value = [...customers.value];
+    return;
+  }
+  filteredCustomers.value = customers.value.filter(
+    (cust: any) => cust.name?.toLowerCase().includes(query) || cust.email?.toLowerCase().includes(query)
+  );
+};
+
+const searchEmployees = (event: any) => {
+  const query = event.query?.toLowerCase() || '';
+  if (!query) {
+    filteredEmployees.value = [...employees.value];
+    return;
+  }
+  filteredEmployees.value = employees.value.filter(
+    (emp: any) => emp.name?.toLowerCase().includes(query) || emp.email?.toLowerCase().includes(query)
+  );
+};
+
 const handleCustomerSelect = (event: any) => {
   selectedCustomer.value = event.value;
   form.value.customer_id = event.value?.id || null;
+  // Clear subscription when customer changes
+  form.value.subscription_id = null;
+  selectedSubscription.value = null;
   if (event.value?.id) {
     fetchSubscriptions(event.value.id);
+  } else {
+    subscriptions.value = [];
+    filteredSubscriptions.value = [];
   }
+};
+
+const handleSubscriptionClear = () => {
+  selectedSubscription.value = null;
+  form.value.subscription_id = null;
+};
+
+const handleSubscriptionSelect = (event: any) => {
+  selectedSubscription.value = event.value;
+  form.value.subscription_id = event.value?.id || null;
+};
+
+const handleEmployeeSelect = (event: any) => {
+  selectedEmployee.value = event.value;
+  form.value.assigned_to = event.value?.id ? Number(event.value.id) : null;
+};
+
+const handleEmployeeClear = () => {
+  selectedEmployee.value = null;
+  form.value.assigned_to = null;
 };
 
 const submit = async () => {
@@ -192,8 +345,21 @@ const submit = async () => {
 
     if (form.value.customer_id) payload.customer_id = form.value.customer_id;
     if (form.value.subscription_id) payload.subscription_id = form.value.subscription_id;
-    if (form.value.assigned_to) payload.assigned_to = form.value.assigned_to;
-    if (form.value.due_date) payload.due_date = form.value.due_date;
+    if (form.value.assigned_to !== null && form.value.assigned_to !== undefined && form.value.assigned_to !== '') {
+      payload.assigned_to = Number(form.value.assigned_to); // Ensure numeric ID
+    } else {
+      payload.assigned_to = null; // Explicitly send null if unassigned
+    }
+    if (form.value.due_date) {
+      // Convert Date object to YYYY-MM-DD string format
+      const date = form.value.due_date instanceof Date ? form.value.due_date : new Date(form.value.due_date);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        payload.due_date = `${year}-${month}-${day}`;
+      }
+    }
     if (form.value.notes) payload.notes = form.value.notes;
 
     const res = await axiosClient.put(`/tasks/${props.task.id}`, payload);
@@ -259,9 +425,33 @@ const submit = async () => {
         <AutoComplete
           v-model="selectedCustomer"
           :suggestions="filteredCustomers"
+          @complete="searchCustomers"
           @item-select="handleCustomerSelect"
           option-label="name"
           placeholder="Search customer..."
+          fluid
+          size="small"
+          dropdown
+        >
+          <template #item="{ option }">
+            <div class="flex flex-col">
+              <span class="font-medium text-gray-900">{{ option.name }}</span>
+              <span v-if="option.email" class="text-xs text-gray-500">{{ option.email }}</span>
+            </div>
+          </template>
+        </AutoComplete>
+      </div>
+
+      <div v-if="selectedCustomer">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Subscription (Optional)</label>
+        <AutoComplete
+          v-model="selectedSubscription"
+          :suggestions="filteredSubscriptions"
+          @item-select="handleSubscriptionSelect"
+          @clear="handleSubscriptionClear"
+          option-label="name"
+          placeholder="Select subscription..."
+          :loading="subscriptionsLoading"
           fluid
           size="small"
           dropdown
@@ -273,18 +463,32 @@ const submit = async () => {
         <AutoComplete
           v-model="selectedEmployee"
           :suggestions="filteredEmployees"
-          @item-select="(e: any) => { selectedEmployee = e.value; form.assigned_to = e.value?.id || null; }"
+          @complete="searchEmployees"
+          @item-select="handleEmployeeSelect"
+          @clear="handleEmployeeClear"
           option-label="name"
           placeholder="Search employee..."
           fluid
           size="small"
           dropdown
-        />
+        >
+          <template #item="{ option }">
+            <div class="flex flex-col">
+              <span class="font-medium text-gray-900">{{ option.name }}</span>
+              <span v-if="option.email" class="text-xs text-gray-500">{{ option.email }}</span>
+            </div>
+          </template>
+        </AutoComplete>
       </div>
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Due Date (Optional)</label>
-        <DatePicker v-model="form.due_date" fluid size="small" />
+        <DatePicker 
+          v-model="form.due_date" 
+          fluid 
+          size="small"
+          :dateFormat="'yy-mm-dd'"
+        />
       </div>
 
       <div>

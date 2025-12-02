@@ -5,6 +5,7 @@ import axiosClient from '../../axios';
 import { useToast } from 'primevue/usetoast';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import { useGeneralSettingsStore } from '../../stores/generalSettingsStore';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 const generalSettingsStore = useGeneralSettingsStore();
 const tenantCurrency = computed(() => generalSettingsStore.currencyUnit);
@@ -120,11 +121,8 @@ const loadTabData = async (tab: string) => {
   if (tab === 'complaints' && !complaintData.value) await fetchComplaints();
 };
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: tenantCurrency.value,
-  }).format(amount);
+const formatCurrencyAmount = (amount: number) => {
+  return formatCurrencyAmount(amount, tenantCurrency.value, true);
 };
 
 onMounted(async () => {
@@ -228,7 +226,7 @@ onMounted(async () => {
         <div v-if="activeTab === 'dashboard' && dashboardData" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div class="rounded-xl border border-gray-200 bg-white p-6">
             <p class="text-sm font-medium text-gray-500">Monthly Revenue</p>
-            <p class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(dashboardData.monthly_revenue || 0) }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrencyAmount(dashboardData.monthly_revenue || 0) }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-6">
             <p class="text-sm font-medium text-gray-500">Active Subscriptions</p>
@@ -266,19 +264,19 @@ onMounted(async () => {
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <p class="text-sm text-gray-500">Total Revenue</p>
-                <p class="text-xl font-bold text-gray-900">{{ formatCurrency(revenueData.summary?.total_revenue || 0) }}</p>
+                <p class="text-xl font-bold text-gray-900">{{ formatCurrencyAmount(revenueData.summary?.total_revenue || 0) }}</p>
               </div>
               <div>
                 <p class="text-sm text-gray-500">Discounts</p>
-                <p class="text-xl font-bold text-red-600">{{ formatCurrency(revenueData.summary?.total_discounts || 0) }}</p>
+                <p class="text-xl font-bold text-red-600">{{ formatCurrencyAmount(revenueData.summary?.total_discounts || 0) }}</p>
               </div>
               <div>
                 <p class="text-sm text-gray-500">Late Fees</p>
-                <p class="text-xl font-bold text-green-600">{{ formatCurrency(revenueData.summary?.total_late_fees || 0) }}</p>
+                <p class="text-xl font-bold text-green-600">{{ formatCurrencyAmount(revenueData.summary?.total_late_fees || 0) }}</p>
               </div>
               <div>
                 <p class="text-sm text-gray-500">Net Revenue</p>
-                <p class="text-xl font-bold text-indigo-600">{{ formatCurrency(revenueData.summary?.net_revenue || 0) }}</p>
+                <p class="text-xl font-bold text-indigo-600">{{ formatCurrencyAmount(revenueData.summary?.net_revenue || 0) }}</p>
               </div>
             </div>
           </div>

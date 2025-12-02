@@ -107,7 +107,7 @@ const fetchEmployees = async () => {
     else raw = [];
 
     employees.value = raw.map((emp: any) => ({
-      id: emp?.id ?? emp?.employee?.id,
+      id: emp?.employee?.id ?? emp?.id, // Prioritize nested ID structure
       name: emp?.name ?? emp?.employee?.name ?? 'Unknown',
       email: emp?.email ?? '',
     }));
@@ -209,7 +209,12 @@ const handleCustomerSelect = (event: any) => {
 
 const handleEmployeeSelect = (event: any) => {
   selectedEmployee.value = event.value;
-  form.value.assigned_to = event.value?.id || null;
+  form.value.assigned_to = event.value?.id ? Number(event.value.id) : null;
+};
+
+const handleEmployeeClear = () => {
+  selectedEmployee.value = null;
+  form.value.assigned_to = null;
 };
 
 const handleSubscriptionSelect = (event: any) => {
@@ -243,7 +248,11 @@ const submit = async () => {
 
     if (form.value.customer_id) payload.customer_id = form.value.customer_id;
     if (form.value.subscription_id) payload.subscription_id = form.value.subscription_id;
-    if (form.value.assigned_to) payload.assigned_to = form.value.assigned_to;
+    if (form.value.assigned_to !== null && form.value.assigned_to !== undefined && form.value.assigned_to !== '') {
+      payload.assigned_to = Number(form.value.assigned_to); // Ensure numeric ID
+    } else {
+      payload.assigned_to = null; // Explicitly send null if unassigned
+    }
     if (form.value.due_date) payload.due_date = form.value.due_date;
     if (form.value.notes) payload.notes = form.value.notes;
 
@@ -347,6 +356,7 @@ const submit = async () => {
           :suggestions="filteredEmployees"
           @complete="searchEmployees"
           @item-select="handleEmployeeSelect"
+          @clear="handleEmployeeClear"
           option-label="name"
           placeholder="Search employee..."
           :loading="employeesLoading"

@@ -96,8 +96,8 @@ const fetchEmployees = async () => {
     else raw = [];
 
     employees.value = raw.map((emp: any) => ({
-      id: emp?.id ?? emp?.employee?.id,
-      name: emp?.name ?? emp?.employee?.name ?? 'Unknown',
+      id: emp?.employee?.id ?? emp?.id,
+      name: emp?.name ?? 'Unknown',
       email: emp?.email ?? '',
     }));
     filteredEmployees.value = [...employees.value];

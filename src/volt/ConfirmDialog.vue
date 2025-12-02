@@ -7,21 +7,21 @@
         }"
     >
         <template #container="{ message, acceptCallback, rejectCallback }">
-            <div class="flex items-center justify-between shrink-0 p-5">
-                <span class="font-semibold text-xl">{{ message.header }}</span>
+            <div class="flex items-center justify-between shrink-0 px-5 pt-5 pb-4">
+                <span class="font-semibold text-lg">{{ message.header }}</span>
                 <SecondaryButton variant="text" rounded @click="rejectCallback" autofocus>
                     <template #icon>
                         <TimesIcon />
                     </template>
                 </SecondaryButton>
             </div>
-            <div class="overflow-y-auto pt-0 px-5 pb-5 flex items-center gap-4">
-                <ExclamationTriangeIcon class="size-6" />
-                {{ message.message }}
+            <div class="px-5 pb-4 flex items-start gap-4">
+                <ExclamationTriangeIcon class="size-6 mt-0.5 shrink-0 text-amber-500" />
+                <div class="flex-1 text-sm leading-relaxed text-gray-700 dark:text-gray-300">{{ message.message }}</div>
             </div>
-            <div class="pt-0 px-5 pb-5 flex justify-end gap-2">
-                <SecondaryButton @click="rejectCallback" :label="message.rejectProps.label" size="small" />
-                <Button @click="acceptCallback" :label="message.acceptProps.label" size="small" />
+            <div class="px-5 pb-5 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                <SecondaryButton @click="rejectCallback" :label="message.rejectProps?.label || 'Cancel'" size="small" />
+                <Button @click="acceptCallback" :label="message.acceptProps?.label || 'Confirm'" size="small" />
             </div>
         </template>
     </ConfirmDialog>
@@ -40,7 +40,7 @@ interface Props extends /* @vue-ignore */ ConfirmDialogProps {}
 defineProps<Props>();
 
 const theme = ref<ConfirmDialogPassThroughOptions>({
-    root: `max-h-[90%] max-w-screen rounded-xl
+    root: `w-auto max-w-md rounded-xl
         border border-surface-200 dark:border-surface-700
         bg-surface-0 dark:bg-surface-900
         text-surface-700 dark:text-surface-0 shadow-lg`,

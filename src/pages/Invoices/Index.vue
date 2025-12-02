@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import MasterLayout from '../../layouts/MasterLayout.vue';
 import IndexPageSkeleton from '../../components/IndexPageSkeleton.vue';
 import axiosClient from '../../axios';
@@ -11,6 +11,7 @@ import ShowInvoice from './Show.vue';
 import SendInvoiceModal from '../../components/SendInvoiceModal.vue';
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 const generalSettingsStore = useGeneralSettingsStore();
 const tenantCurrency = computed(() => generalSettingsStore.currencyUnit || 'PKR');
@@ -255,7 +256,37 @@ const viewInvoice = (invoice: Invoice) => {
 const handleInvoiceModalClose = () => {
   showInvoiceModal.value = false;
   selectedInvoiceId.value = null;
+  // Clean up query parameter if it exists
+  if (route.query.show) {
+    const newQuery = { ...route.query };
+    delete newQuery.show;
+    router.replace({ query: newQuery });
+  }
 };
+
+// Function to handle query parameter
+const handleShowQuery = () => {
+  if (route.query.show) {
+    // Handle both string and array cases
+    const showValue = Array.isArray(route.query.show) ? route.query.show[0] : route.query.show;
+    const id = Number(showValue);
+    if (!isNaN(id) && id > 0) {
+      selectedInvoiceId.value = id;
+      showInvoiceModal.value = true;
+      // Clean up query param
+      const newQuery = { ...route.query };
+      delete newQuery.show;
+      router.replace({ query: newQuery });
+    }
+  }
+};
+
+// Watch for query parameters to auto-open modals (when navigating from other pages)
+watch(() => route.query.show, (showValue) => {
+  if (showValue) {
+    handleShowQuery();
+  }
+});
 
 const handleInvoiceDuplicated = async (duplicatedInvoice: any) => {
   showInvoiceModal.value = false;
@@ -283,6 +314,9 @@ const openCustomerModal = (customerId: number) => {
 onMounted(async () => {
   await generalSettingsStore.fetchSettings();
   await Promise.all([fetchInvoices(), fetchStatistics()]);
+  
+  // Check for query parameter on mount (handles initial page load with query param)
+  handleShowQuery();
 });
 </script>
 

@@ -231,8 +231,12 @@ const viewPayment = (_paymentId?: number) => {
   emit('update:visible', false);
 };
 
-const viewInvoice = (_invoiceId?: number) => {
+const viewInvoice = (invoiceId?: number) => {
+  if (invoiceId) {
+    router.push({ name: 'Invoices.Index', query: { show: invoiceId } });
+  } else {
   router.push({ name: 'Invoices.Index' });
+  }
   emit('update:visible', false);
 };
 </script>
