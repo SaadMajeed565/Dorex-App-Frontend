@@ -254,7 +254,7 @@ watch(
 // Watch due_date to ensure it's always a Date or null
 watch(
   () => form.value.due_date,
-  (newValue) => {
+  (newValue: Date | null | string) => {
     // If it's a string, convert to Date
     if (typeof newValue === 'string' && newValue.trim()) {
       const parsedDate = new Date(newValue);

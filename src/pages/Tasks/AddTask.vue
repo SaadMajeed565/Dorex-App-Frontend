@@ -30,7 +30,7 @@ const form = ref({
   customer_id: null as any,
   subscription_id: null as any,
   assigned_to: null as any,
-  due_date: null as string | null,
+  due_date: null as Date | null,
   notes: '',
 });
 
@@ -253,7 +253,11 @@ const submit = async () => {
     } else {
       payload.assigned_to = null; // Explicitly send null if unassigned
     }
-    if (form.value.due_date) payload.due_date = form.value.due_date;
+    if (form.value.due_date) {
+      payload.due_date = form.value.due_date instanceof Date 
+        ? form.value.due_date.toISOString().split('T')[0] 
+        : form.value.due_date;
+    }
     if (form.value.notes) payload.notes = form.value.notes;
 
     const res = await axiosClient.post('/tasks', payload);

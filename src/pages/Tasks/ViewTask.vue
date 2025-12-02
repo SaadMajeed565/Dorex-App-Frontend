@@ -206,35 +206,36 @@ const hideEmployeePopover = () => {
   showEmployeePopover.value = false;
 };
 
-const getStatusSeverity = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case 'pending':
-      return 'secondary';
-    case 'in_progress':
-      return 'info';
-    case 'completed':
-      return 'success';
-    case 'cancelled':
-      return 'danger';
-    default:
-      return 'secondary';
-  }
-};
+// Unused functions removed - kept for potential future use
+// const getStatusSeverity = (status: string) => {
+//   switch (status?.toLowerCase()) {
+//     case 'pending':
+//       return 'secondary';
+//     case 'in_progress':
+//       return 'info';
+//     case 'completed':
+//       return 'success';
+//     case 'cancelled':
+//       return 'danger';
+//     default:
+//       return 'secondary';
+//   }
+// };
 
-const getPrioritySeverity = (priority: string) => {
-  switch (priority?.toLowerCase()) {
-    case 'low':
-      return 'secondary';
-    case 'medium':
-      return 'info';
-    case 'high':
-      return 'warn';
-    case 'critical':
-      return 'danger';
-    default:
-      return 'secondary';
-  }
-};
+// const getPrioritySeverity = (priority: string) => {
+//   switch (priority?.toLowerCase()) {
+//     case 'low':
+//       return 'secondary';
+//     case 'medium':
+//       return 'info';
+//     case 'high':
+//       return 'warn';
+//     case 'critical':
+//       return 'danger';
+//     default:
+//       return 'secondary';
+//   }
+// };
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return 'N/A';

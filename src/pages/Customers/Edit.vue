@@ -58,7 +58,7 @@ const initialFormState = {
   current_role: 'customer',
   status: 'active',
   fee_amount: null as number | null,
-  payment_date: null as Date | string | null,
+  payment_date: null as Date | null,
   panel_id: '',
   panel_password: '',
 }
@@ -217,14 +217,14 @@ const submitForm = async () => {
         valueToAppend = String(val)
       } else if (key === 'payment_date') {
         // Ensure consistent date string (yyyy-mm-dd)
-        const d = val as Date | string
+        const d = val as Date | null
         if (d instanceof Date) {
           const yyyy = d.getFullYear()
           const mm = String(d.getMonth() + 1).padStart(2, '0')
           const dd = String(d.getDate()).padStart(2, '0')
           valueToAppend = `${yyyy}-${mm}-${dd}`
         } else {
-          valueToAppend = d
+          valueToAppend = ''
         }
       } else {
         valueToAppend = String(val as any)

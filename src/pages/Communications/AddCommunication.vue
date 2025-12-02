@@ -36,7 +36,7 @@ const form = ref({
   subject: '',
   message: '',
   send_immediately: true,
-  scheduled_at: null as Date | string | null,
+  scheduled_at: null as Date | null,
 });
 
 const isEditing = computed(() => !!props.communication);
@@ -323,7 +323,7 @@ const submitForm = async () => {
     if (!form.value.send_immediately && form.value.scheduled_at) {
       const scheduledDate = form.value.scheduled_at instanceof Date
         ? form.value.scheduled_at.toISOString()
-        : form.value.scheduled_at;
+        : new Date(form.value.scheduled_at).toISOString();
       data.append('scheduled_at', scheduledDate);
     }
 

@@ -47,8 +47,8 @@ const initialFormState = {
   customer_id: null as CustomerOption | null,
   package_id: null as PackageOption | null,
   supervisor_id: null as EmployeeOption | null,
-  start_date: null as string | null,
-  end_date: null as string | null,
+  start_date: null as Date | null,
+  end_date: null as Date | null,
   status: 'active'
 }
 
@@ -228,8 +228,8 @@ const submitForm = async () => {
       customer_id: form.value.customer_id!.id,
       package_id: form.value.package_id!.id,
       supervisor_id: form.value.supervisor_id?.id || null,
-      start_date: form.value.start_date,
-      end_date: form.value.end_date || null,
+      start_date: form.value.start_date ? (form.value.start_date instanceof Date ? form.value.start_date.toISOString().split('T')[0] : form.value.start_date) : null,
+      end_date: form.value.end_date ? (form.value.end_date instanceof Date ? form.value.end_date.toISOString().split('T')[0] : form.value.end_date) : null,
       status: form.value.status
     }
 

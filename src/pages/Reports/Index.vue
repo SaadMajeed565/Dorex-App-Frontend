@@ -122,7 +122,7 @@ const loadTabData = async (tab: string) => {
 };
 
 const formatCurrencyAmount = (amount: number) => {
-  return formatCurrencyAmount(amount, tenantCurrency.value, true);
+  return formatCurrency(amount, tenantCurrency.value, true);
 };
 
 onMounted(async () => {
